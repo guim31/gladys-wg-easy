@@ -14,7 +14,7 @@ const logger = createLogger({ name: 'wg-easy-app' });
 
 /**
  * @param {object} gladys GladysIntegration instance
- * @param {object} [options] test seams: request, timers, timings, now
+ * @param {object} [options] test seams: request, timers, timings, now, dataDir
  */
 export function registerHandlers(gladys, options = {}) {
   const hub = new WgEasyHub({
@@ -23,6 +23,7 @@ export function registerHandlers(gladys, options = {}) {
     timers: options.timers ?? true,
     timings: options.timings,
     now: options.now,
+    dataDir: options.dataDir,
   });
 
   // Resolved once the hub has started; every handler waits for it, so a
@@ -73,10 +74,15 @@ export function registerHandlers(gladys, options = {}) {
     }),
   );
 
-  gladys.onAction(
-    'test_connection',
-    whenReady(() => hub.testConnection()),
-  );
+  const actions = {
+    test_connection: () => hub.testConnection(),
+    add_server: (fields) => hub.addServer(fields),
+    remove_server: (fields) => hub.removeServer(fields),
+    list_servers: () => hub.listServers(),
+  };
+  for (const [key, handler] of Object.entries(actions)) {
+    gladys.onAction(key, whenReady(handler));
+  }
 
   for (const [key, widget] of Object.entries(WIDGETS)) {
     gladys.onWidgetGet(

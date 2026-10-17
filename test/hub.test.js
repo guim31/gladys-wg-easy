@@ -15,6 +15,7 @@ import {
   createAll,
   createClock,
   createWorld,
+  serverDeviceId,
   serverFeatureId,
 } from './helpers/world.js';
 
@@ -78,7 +79,12 @@ test('connected, then disconnected 3 minutes after the last handshake: one event
   assert.deepEqual(w.events(TRIGGERS.CONNECTED), [
     {
       key: TRIGGERS.CONNECTED,
-      data: { device: w.laptop.device, client: 'Laptop' },
+      data: {
+        device: w.laptop.device,
+        client: 'Laptop',
+        server: 'wg-easy 192.0.2.10:51821',
+        server_device: serverDeviceId(w.gladys),
+      },
     },
   ]);
   assert.equal(w.fake.lastState(w.laptop.feature(FEATURE_KEYS.CONNECTED)), 1);
@@ -107,6 +113,8 @@ test('connected, then disconnected 3 minutes after the last handshake: one event
     device: w.laptop.device,
     client: 'Laptop',
     connected_minutes: 13,
+    server: 'wg-easy 192.0.2.10:51821',
+    server_device: serverDeviceId(w.gladys),
   });
   assert.equal(w.fake.lastState(w.laptop.feature(FEATURE_KEYS.CONNECTED)), 0);
 });
@@ -199,13 +207,27 @@ test('outage: one event after two silent readings, one when it answers again', a
   await w.hub.poll();
   await w.hub.poll();
   assert.deepEqual(w.events(TRIGGERS.UNREACHABLE), [
-    { key: TRIGGERS.UNREACHABLE, data: { error: 'wg-easy does not answer' } },
+    {
+      key: TRIGGERS.UNREACHABLE,
+      data: {
+        error: 'wg-easy does not answer',
+        server: 'wg-easy 192.0.2.10:51821',
+        server_device: serverDeviceId(w.gladys),
+      },
+    },
   ]);
   clock.advance(10 * 60_000);
   w.server.online = true;
   await w.hub.poll();
   assert.deepEqual(w.events(TRIGGERS.RECOVERED), [
-    { key: TRIGGERS.RECOVERED, data: { down_minutes: 10 } },
+    {
+      key: TRIGGERS.RECOVERED,
+      data: {
+        down_minutes: 10,
+        server: 'wg-easy 192.0.2.10:51821',
+        server_device: serverDeviceId(w.gladys),
+      },
+    },
   ]);
   assert.equal(w.fake.connectionStatus.connected, true);
 });
@@ -306,7 +328,14 @@ test('back after an outage, even to refuse the password: the outage is over', as
   w.server.password = 'changed';
   await w.hub.poll();
   assert.deepEqual(w.events(TRIGGERS.RECOVERED), [
-    { key: TRIGGERS.RECOVERED, data: { down_minutes: 5 } },
+    {
+      key: TRIGGERS.RECOVERED,
+      data: {
+        down_minutes: 5,
+        server: 'wg-easy 192.0.2.10:51821',
+        server_device: serverDeviceId(w.gladys),
+      },
+    },
   ]);
   assert.match(w.fake.connectionStatus.message.en, /password refused/);
 });

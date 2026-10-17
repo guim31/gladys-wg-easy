@@ -47,6 +47,19 @@ WireGuard client. Feedback is welcome on the
 The version (v15 or v14) is found by itself. The scene triggers and the widget
 work even for clients you did not add to Gladys.
 
+### Several servers
+
+The server of the configuration is the first one. To watch other wg-easy (at
+a second home, on another machine), use **Add a wg-easy server** with the same
+fields: address, user name, password, self-signed certificates. Each server
+gets its own server device and its clients, named after its address. Adding a
+server already added changes its user name, password or certificate option.
+**Remove a wg-easy server** takes its address; its devices stay in Gladys
+until you delete them. **Show the servers** lists every server with its last
+reading. The added servers and their passwords are kept in the integration's
+data, never in the logs. The status of the integration says the first server
+that does not answer.
+
 ## The devices
 
 **The server** (`wg-easy` followed by its address):
@@ -99,15 +112,15 @@ the last row counts the other clients.
 ### Triggers
 
 - **VPN client connected**: a client connected to the VPN of the home (a first
-  handshake after 3 minutes of silence). Filter: one client, or any. Variables:
-  client name, client device.
+  handshake after 3 minutes of silence). Filters: one client, or any; one server,
+  or any. Variables: client name, client device, server.
 - **VPN client disconnected**: a client has had no handshake for 3 minutes, or
-  was disabled. Filter: one client, or any. Variables: client name, client
-  device, minutes connected.
+  was disabled. Filters: one client, or any; one server, or any.
+  Variables: client name, client device, minutes connected, server.
 - **wg-easy no longer answers**: wg-easy stopped answering (two readings in a
-  row). Variable: the error.
-- **wg-easy answers again**: wg-easy answers again after an outage. Variable:
-  minutes without answer.
+  row). Filter: one server, or any. Variables: the error, the server.
+- **wg-easy answers again**: wg-easy answers again after an outage. Filter: one
+  server, or any. Variables: minutes without answer, the server.
 
 No event is sent at the start of the integration: the state before is not
 known.
@@ -143,7 +156,8 @@ known.
 
 ## Limits
 
-- One wg-easy server per Gladys.
+- 10 wg-easy servers at most: the one of the configuration and 9 added.
+
 - wg-easy v15 and v14 only; the older versions are not supported.
 - "Connected" is deduced from the last handshake (3 minutes): a client that
   sends nothing counts as disconnected, a disconnection is seen up to 3 minutes

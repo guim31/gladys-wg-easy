@@ -195,7 +195,8 @@ const counter = () =>
     max: MAX_CLIENTS,
   });
 
-export const serverIds = (gladys) => gladys.externalIds(SERVER_TYPE, SERVER_ID);
+// The server of the configuration is "1" (the only one of 1.0.0), the added ones "2", "3"…
+export const serverIds = (gladys, id = SERVER_ID) => gladys.externalIds(SERVER_TYPE, id);
 export const clientIds = (gladys, key) => gladys.externalIds(CLIENT_TYPE, key);
 
 /** The client key of a device external id, null when it is not a client device. */
@@ -212,8 +213,8 @@ export const serverName = (url) => `wg-easy ${hostOf(url)}`;
 export const clientName = (client) => `${client.name} (VPN)`;
 
 /** Discovery payload of the server device. */
-export function buildServerDevice(gladys, { url, language = 'en' }) {
-  const ids = serverIds(gladys);
+export function buildServerDevice(gladys, { url, language = 'en', id = SERVER_ID }) {
+  const ids = serverIds(gladys, id);
   const names = NAMES[language] ?? NAMES.en;
   return {
     name: serverName(url),
@@ -259,8 +260,8 @@ export function clientValues(gladys, client, { now, language = 'en' }) {
 }
 
 /** The value of every feature of the server. */
-export function serverValues(gladys, clients, { now }) {
-  const ids = serverIds(gladys);
+export function serverValues(gladys, clients, { now, id = SERVER_ID }) {
+  const ids = serverIds(gladys, id);
   return SERVER_FEATURES.map(({ key, value }) => ({
     key,
     externalId: ids.feature(key),

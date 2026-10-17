@@ -118,36 +118,53 @@ function row({ client, connected }, now, language) {
 }
 
 async function get(hub, { language = 'en' } = {}) {
-  const { config } = hub;
-  if (!config?.url) {
+  const { config, servers } = hub;
+  if (servers.length === 0) {
     return message(
       config?.invalidUrl ? CONNECTION_TEXT.invalidUrl : CONNECTION_TEXT.noServer,
       language,
     );
   }
-  if (hub.error) {
+  const errorOf = (server) => pick(ERROR_TEXT[server.error.kind] ?? ERROR_TEXT.http, language);
+  const failing = servers.filter((server) => server.error);
+  if (failing.length === servers.length) {
     return {
       ttl_seconds: 30,
       components: [
         {
           type: 'text',
           variant: 'body',
-          text: pick(ERROR_TEXT[hub.error.kind] ?? ERROR_TEXT.http, language),
+          text: fit(
+            servers.length === 1
+              ? errorOf(servers[0])
+              : failing.map((server) => `${server.name}: ${errorOf(server)}`).join(' · '),
+            300,
+          ),
         },
       ],
     };
   }
-  if (!hub.read) {
+  if (!servers.some((server) => server.read)) {
     return message(TEXT.waiting, language);
   }
-  const entries = sortEntries(hub.clients.values());
-  if (entries.length === 0) {
+  const entries = sortEntries(
+    servers.filter((server) => !server.error).flatMap((server) => [...server.clients.values()]),
+  );
+  // With several servers, one failing is said on its own row, first.
+  const problems = failing.map((server) => ({
+    label: fit(server.name, 40),
+    icon: 'alert-triangle',
+    value: fit(errorOf(server), 40),
+    color: WIDGET_COLORS.WARNING,
+  }));
+  if (entries.length === 0 && problems.length === 0) {
     return message(TEXT.empty, language);
   }
   const now = hub.now();
   const connected = entries.filter((entry) => entry.connected).length;
-  const shown = entries.length > MAX_ROWS + 1 ? entries.slice(0, MAX_ROWS) : entries;
-  const items = shown.map((entry) => row(entry, now, language));
+  const rows = MAX_ROWS - problems.length;
+  const shown = entries.length > rows + 1 ? entries.slice(0, rows) : entries;
+  const items = [...problems, ...shown.map((entry) => row(entry, now, language))];
   if (shown.length < entries.length) {
     items.push({
       label: pick(TEXT.more, language),

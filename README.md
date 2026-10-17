@@ -72,7 +72,8 @@ wg-easy source code).
 
 ## Limitations
 
-- One wg-easy server per Gladys.
+- 10 wg-easy servers at most: the one of the configuration and 9 added by the
+  "Add a wg-easy server" action.
 - "Connected" is deduced from the last handshake: a client that sends nothing
   (no _Persistent keepalive_) counts as disconnected after 3 minutes.
 - The data counters are those of the WireGuard interface and restart from zero
