@@ -187,3 +187,67 @@ test('the password of an added server never reaches the logs', async (t) => {
     lines.join('\n'),
   );
 });
+
+test('review: a server down publishes nothing; removed, its clients go disconnected', async (t) => {
+  const w = await twoServers(t);
+  await createAll(w);
+  const office = w.gladys.externalIds(CLIENT_TYPE, keyId(OFFICE_KEY));
+  w.office.find('Office laptop').enabled = true;
+  w.office.handshake('Office laptop', w.clock.now());
+  await w.hub.poll();
+  assert.equal(w.fake.lastState(office.feature(FEATURE_KEYS.CONNECTED)), 1);
+  // Down, then read on while server 1 answers: no state of its client changes
+  // without an event (it is unknown, not disconnected).
+  w.office.online = false;
+  w.clock.advance(10 * 60_000);
+  await w.hub.poll();
+  await w.hub.poll();
+  assert.equal(w.fake.lastState(office.feature(FEATURE_KEYS.CONNECTED)), 1);
+  assert.equal(
+    w.fake.sceneEvents.filter(
+      (e) => e.key === TRIGGERS.DISCONNECTED && e.data.device === office.device,
+    ).length,
+    0,
+  );
+  // Removed: its device stays in Gladys, disconnected and unreachable.
+  w.office.online = true;
+  w.office.handshake('Office laptop', w.clock.now());
+  await w.hub.poll();
+  await w.fake.action('remove_server', { server: URL_2 });
+  assert.equal(w.fake.lastState(office.feature(FEATURE_KEYS.CONNECTED)), 0);
+  const last = w.fake.transports
+    .filter((entry) => entry.device_external_id === office.device)
+    .at(-1);
+  assert.equal(last.transport, 'unreachable');
+});
+
+test('review: a client moving to another server fires no event', async (t) => {
+  // The same client on both servers (a configuration copied): server 1 owns it.
+  const shared = structuredClone(FIXTURES.v15[0]);
+  const w = await createWorld({
+    servers: { [URL_2]: new FakeWgEasy({ password: 'other', clients: [shared] }) },
+  });
+  t.after(() => w.app.stop());
+  await w.fake.action('add_server', { url: URL_2, password: 'other' });
+  const owners = w.hub.servers.map((server) => server.clients.size);
+  assert.deepEqual(owners, [2, 0], 'server 1 keeps the shared client');
+  // Server 1 gone from the configuration: server 2 takes the client, silently.
+  await w.app.hub.reconfigure({ ...w.hub.config, url: null });
+  await w.hub.poll();
+  assert.equal(w.hub.servers[0].clients.size, 1);
+  assert.equal(w.fake.sceneEvents.filter((e) => e.key === TRIGGERS.CONNECTED).length, 0);
+});
+
+test('review: an unreadable servers.json is set aside, ids never start over at 2', async (t) => {
+  const { writeFile } = await import('node:fs/promises');
+  const dataDir = (await createWorld({ connect: false })).dataDir;
+  await writeFile(join(dataDir, 'servers.json'), '{ not json');
+  const w = await createWorld({ dataDir, servers: { [URL_2]: officeServer() } });
+  t.after(() => w.app.stop());
+  await w.fake.action('add_server', { url: URL_2, password: 'other' });
+  const saved = JSON.parse(await readFile(join(dataDir, 'servers.json'), 'utf8'));
+  assert.deepEqual(
+    saved.servers.map((entry) => entry.id),
+    ['1001'],
+  );
+});

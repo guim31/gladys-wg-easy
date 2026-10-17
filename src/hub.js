@@ -87,11 +87,12 @@ export class WgEasyHub {
     this.transports = new Map();
     this.connection = null;
     this.discovered = null;
-    this.heartbeatAt = 0;
     this.pollTimer = null;
     this.stopped = false;
     /** Problems already logged, by key: repeats go to debug. */
     this.warned = new Set();
+    /** Client keys of a server removed or replaced: their next owner fires no event for them. */
+    this.released = new Set();
   }
 
   // --- Logs ------------------------------------------------------------------
@@ -167,7 +168,18 @@ export class WgEasyHub {
     this.servers = next;
     for (const server of dropped) {
       server.stop();
-      await this.forget([...server.clients.values()], { silent: true });
+      // Removed for good: its devices stay in Gladys, shown disconnected and
+      // unreachable. Replaced (new address or credentials): the new reading
+      // tells the truth, nothing to send now.
+      const replaced = next.some((candidate) => candidate.id === server.id);
+      if (!replaced && server.read) {
+        await this.publishTransports(server, false);
+      }
+      await this.forget([...server.clients.values()], { silent: replaced });
+      for (const key of server.clients.keys()) {
+        // Another server may read it next: not a connection (no event).
+        this.released.add(key);
+      }
       this.transports.delete(server.deviceId);
       for (const externalId of [...this.published.keys()]) {
         if (externalId.startsWith(`${server.deviceId}:`)) {
@@ -215,7 +227,8 @@ export class WgEasyHub {
     await this.syncServers();
     this.discovered = null;
     try {
-      await this.poll();
+      // Fresh: a reading in flight may have published before the change.
+      await this.poll({ fresh: true });
     } finally {
       // Even after an unexpected error: the timer keeps reading.
       this.schedulePoll();
@@ -247,14 +260,14 @@ export class WgEasyHub {
   // --- Reading the servers ---------------------------------------------------
 
   /** Read every server, one after the other (their events stay in order). */
-  async poll() {
+  async poll({ fresh = false } = {}) {
     if (this.servers.length === 0) {
       await this.publishDevices();
       await this.publishConnectionStatus();
       return;
     }
     for (const server of [...this.servers]) {
-      await server.poll();
+      await server.poll({ fresh });
     }
   }
 
@@ -338,11 +351,15 @@ export class WgEasyHub {
     }
   }
 
-  /** Every feature value of the last readings. */
-  values() {
+  /**
+   * The feature values of the servers given (all by default). A server that
+   * does not answer publishes nothing: its clients keep their last values
+   * (and get no heartbeat), as the only server of 1.0.0 did.
+   */
+  values(servers = this.servers) {
     const now = this.now();
-    return this.servers
-      .filter((server) => server.read)
+    return servers
+      .filter((server) => server.read && !server.error)
       .flatMap((server) => {
         const clients = [...server.clients.values()].map((entry) => entry.client);
         return [
@@ -354,14 +371,23 @@ export class WgEasyHub {
       });
   }
 
-  async publishStates({ force = false, only = null } = {}) {
-    if (!this.servers.some((server) => server.read)) {
+  /**
+   * Publish what changed. `server`: only its values, after its own reading
+   * (another server's clients are recomputed only at their reading, never
+   * between). `only`: one device, every server.
+   */
+  async publishStates({ force = false, only = null, server = null } = {}) {
+    const servers = (server ? [server] : this.servers).filter(
+      (candidate) => candidate.read && !candidate.error,
+    );
+    if (servers.length === 0) {
       return;
     }
     const now = this.now();
-    const heartbeat = now - this.heartbeatAt >= this.timings.heartbeatMs;
+    // The heartbeat goes with the reading of each server.
+    const heartbeat = Boolean(server) && now - server.heartbeatAt >= this.timings.heartbeatMs;
     const states = [];
-    for (const { externalId, value } of this.values()) {
+    for (const { externalId, value } of this.values(servers)) {
       if (value === null || (only && !externalId.startsWith(`${only}:`))) {
         continue;
       }
@@ -389,8 +415,8 @@ export class WgEasyHub {
         this.problem('states', `States refused: ${err.message}`);
       }
     }
-    if (heartbeat && !only && !failed) {
-      this.heartbeatAt = now;
+    if (heartbeat && !failed) {
+      server.heartbeatAt = now;
     }
   }
 
@@ -587,9 +613,8 @@ export class WgEasyHub {
       return render(SERVER_TEXT.tooMany, { max: MAX_EXTRA_SERVERS });
     }
     const entry = known
-      ? { ...this.store.servers.find((saved) => saved.id === known.id), ...settings }
-      : { id: this.store.nextId(), ...settings };
-    await this.store.put(entry);
+      ? await this.store.update(known.id, settings)
+      : await this.store.add(settings);
     logger.info(`Configuration action: wg-easy server ${known ? 'updated' : 'added'}: ${url}`);
     await this.syncServers();
     this.discovered = null;

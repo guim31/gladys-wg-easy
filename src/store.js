@@ -20,6 +20,10 @@ const valid = (entry) =>
   entry.id !== '1' &&
   typeof entry.url === 'string';
 
+// An unreadable file is set aside and the ids start over from here: never
+// back to "2", whose devices may still be in Gladys.
+const AFTER_LOSS = 1000;
+
 export class ServerStore {
   constructor(dataDir = DATA_DIR) {
     this.path = join(dataDir, 'servers.json');
@@ -29,50 +33,71 @@ export class ServerStore {
     // The highest id ever given: a removed server's id is never reused, its
     // devices may still be in Gladys.
     this.lastId = 1;
+    // Writes one after the other (two actions at once).
+    this.writing = Promise.resolve();
   }
 
   async load() {
+    let text;
     try {
-      const saved = JSON.parse(await readFile(this.path, 'utf8'));
+      text = await readFile(this.path, 'utf8');
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        logger.warn(`Added servers unreadable: ${err.message}`);
+      }
+      return;
+    }
+    try {
+      const saved = JSON.parse(text);
       this.servers = Array.isArray(saved.servers) ? saved.servers.filter(valid) : [];
       this.lastId = Number.isInteger(saved.lastId) ? saved.lastId : 1;
     } catch (err) {
-      if (err.code !== 'ENOENT') {
-        logger.warn(`Added servers unreadable, none kept: ${err.message}`);
-      }
+      logger.warn(`Added servers unreadable, file set aside: ${err.message}`);
+      await rename(this.path, `${this.path}.bad`).catch(() => {});
       this.servers = [];
-      this.lastId = 1;
+      this.lastId = AFTER_LOSS;
     }
   }
 
-  async save() {
-    await mkdir(this.dir, { recursive: true });
-    const tmp = `${this.path}.tmp`;
-    await writeFile(tmp, JSON.stringify({ lastId: this.lastId, servers: this.servers }), {
-      mode: 0o600,
+  /** Save a new state; memory changes only once it is on disk. */
+  write(servers, lastId) {
+    const run = this.writing.then(async () => {
+      await mkdir(this.dir, { recursive: true });
+      const tmp = `${this.path}.tmp`;
+      await writeFile(tmp, JSON.stringify({ lastId, servers }), { mode: 0o600 });
+      await rename(tmp, this.path);
+      this.servers = servers;
+      this.lastId = lastId;
     });
-    await rename(tmp, this.path);
+    this.writing = run.catch(() => {});
+    return run;
   }
 
-  /** "2", "3"…: never reused (the ids of its devices). Saved by `put`. */
-  nextId() {
+  /** A new server: its id ("2", "3"…, never reused) given once saved. */
+  async add(settings) {
+    await this.writing;
     const used = this.servers.map((entry) => Number(entry.id));
-    this.lastId = Math.max(this.lastId, ...used) + 1;
-    return String(this.lastId);
+    const lastId = Math.max(this.lastId, ...used) + 1;
+    const entry = { id: String(lastId), ...settings };
+    await this.write([...this.servers, entry], lastId);
+    return entry;
   }
 
-  async put(entry) {
-    const index = this.servers.findIndex((saved) => saved.id === entry.id);
-    if (index >= 0) {
-      this.servers[index] = entry;
-    } else {
-      this.servers.push(entry);
-    }
-    await this.save();
+  /** New settings of a server already added. */
+  async update(id, settings) {
+    await this.writing;
+    const servers = this.servers.map((entry) =>
+      entry.id === id ? { ...entry, ...settings } : entry,
+    );
+    await this.write(servers, this.lastId);
+    return servers.find((entry) => entry.id === id);
   }
 
   async remove(id) {
-    this.servers = this.servers.filter((entry) => entry.id !== id);
-    await this.save();
+    await this.writing;
+    await this.write(
+      this.servers.filter((entry) => entry.id !== id),
+      this.lastId,
+    );
   }
 }

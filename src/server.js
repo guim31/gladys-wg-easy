@@ -47,6 +47,7 @@ export class WgEasyServer {
     this.down = false;
     this.downSince = null;
     this.retryTimer = null;
+    this.heartbeatAt = 0;
     this.polling = null;
     this.stopped = false;
   }
@@ -79,16 +80,23 @@ export class WgEasyServer {
     this.retryTimer.unref?.();
   }
 
-  /** Read the server and apply what changed. Concurrent calls share the read. */
-  poll() {
-    if (this.polling) {
+  /**
+   * Read the server and apply what changed. Concurrent calls share the read;
+   * `fresh` reads again after the one in flight (the configuration changed).
+   */
+  poll({ fresh = false } = {}) {
+    if (this.polling && !fresh) {
       return this.polling;
     }
-    const current = this.readServer().finally(() => {
-      if (this.polling === current) {
-        this.polling = null;
-      }
-    });
+    const previous = this.polling ?? Promise.resolve();
+    const current = previous
+      .catch(() => {})
+      .then(() => this.readServer())
+      .finally(() => {
+        if (this.polling === current) {
+          this.polling = null;
+        }
+      });
     this.polling = current;
     return current;
   }
@@ -159,8 +167,10 @@ export class WgEasyServer {
         before.connected !== connected ||
         before.client.enabled !== client.enabled ||
         before.client.name !== client.name;
-      // No event at the first reading: what was the state before?
-      if (this.read && (before?.connected ?? false) !== connected) {
+      // No event at the first reading (what was the state before?), nor for
+      // a client that comes from a server removed or replaced.
+      const inherited = !before && hub.released.delete(client.key);
+      if (this.read && !inherited && (before?.connected ?? false) !== connected) {
         await this.fireClient(entry, before, now);
       }
     }
@@ -180,7 +190,7 @@ export class WgEasyServer {
     this.read = true;
 
     await hub.publishDevices();
-    await hub.publishStates();
+    await hub.publishStates({ server: this });
     await hub.publishTransports(this, true);
     await hub.publishConnectionStatus();
     if (widgetChanged) {
