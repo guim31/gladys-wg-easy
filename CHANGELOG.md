@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-17
+
 ### Added
 
 - One device per WireGuard client of wg-easy: connected (handshake less than
@@ -27,3 +29,6 @@ the notes of the version's GitHub Release.
   themselves; a client keeps its device from v14 to v15.
 - "Test the connection" action, and texts, feature names and documentation in
   English, French, German and Spanish.
+
+[Unreleased]: https://github.com/guim31/gladys-wg-easy/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-wg-easy/releases/tag/v1.0.0
