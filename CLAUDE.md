@@ -31,16 +31,19 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+index.js                          SDK wiring only: src/app.js registers the handlers before connect()
+src/app.js                        every SDK handler -> the hub (also used by the tests)
+src/hub.js                        reading timer, clients, states, transitions -> scene events, switch, deduplicated logs
+src/devices.js                    server device + one device per client: features, names (4 languages), values
+src/wgeasy/client.js              wg-easy API client, v15 (basic auth) and v14 (password header), errors by kind
+src/wgeasy/http.js                node:http/https request (self-signed certificates on request)
+src/widgets.js                    dashboard widget `clients` (manifest `widgets`)
+src/texts.js                      connection, error, report and command texts (4 languages)
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
-gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+gladys-assistant-integration.json manifest: name, config_schema, actions, triggers, widget...
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+                                  and helpers/fakeWgEasy.js (built from the real answers in test/fixtures/wg-easy)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +73,10 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, widget content, feature names, manifest texts, and
+  `docs/en.md`, `docs/fr.md`, `docs/de.md`, `docs/es.md`, kept in sync
+  (`test/i18n.test.js` checks the languages and the doc sections).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -197,6 +202,54 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
 - Les filtres de scène ne font qu'égalité et appartenance : un seuil reste le travail d'un capteur.
 - **Les clés de widgets, de déclencheurs et d'actions sont figées une fois publiées.**
 - `gladys_version` `>=5.1.0` dès qu'il y a widgets, déclencheurs ou actions de scène.
+
+## wg-easy (propre à ce dépôt)
+
+- **Deux générations d'API**, lues dans le code de wg-easy (AGPL, rien de copié) et vérifiées sur de vrais
+  conteneurs (`ghcr.io/wg-easy/wg-easy:15`, 15.4.0, et `:14`) le 17/10/2026 :
+  - **v15** : `GET /api/client`, `POST /api/client/{id}/enable|disable`. Authentification **basic**
+    (`getCurrentUser` de `server/utils/session.ts`) à chaque requête : pas de session à tenir. Refusée (401) à un
+    utilisateur en **double authentification**, et à tous (403) avec `DISABLE_PASSWORD_AUTH`. Le mot de passe est
+    vérifié en argon2 à chaque lecture (coût côté serveur : intervalle de 15 s minimum, 30 s par défaut). La
+    connexion par session a changé de route en 15.4 (`/api/auth/password`, avant `/api/session`) : raison de plus
+    pour le basic. Un admin voit tous les clients, un autre utilisateur les siens.
+  - **v14** : `GET /api/wireguard/client`, le **mot de passe brut** dans `Authorization` (sans schéma). Un mot de
+    passe absent ou faux répond **500** et non 401 (le middleware appelle un `res.status` d'Express qu'h3 n'a pas),
+    tout comme un chemin v15 : la détection traite « 500 sur le chemin v14 » comme un refus d'identifiants.
+  - Détection : v15 puis v14, version mémorisée ; un 404 relance la détection (serveur mis à jour).
+- **`enable` d'un id inconnu répond 200 en v15** (404 en v14) : le hub ne commande que des clients de sa dernière
+  lecture, et relit aussitôt après une commande.
+- Un client **désactivé** n'est pas dans `wg show dump` : `latestHandshakeAt`, `endpoint`, `transferRx/Tx` à `null`
+  (rien n'est publié pour ses compteurs). Sans handshake, les compteurs valent 0 et `latestHandshakeAt` `null`.
+- `transferRx` = reçu **par le serveur** (envoi du client), `transferTx` = téléchargement du client (même lecture
+  que l'interface de wg-easy, `ClientCard/Transfer.vue`). Les fonctionnalités sont nommées du point de vue du
+  client.
+- **Identité d'un client = sa clé publique WireGuard en hexadécimal**, pas l'id wg-easy : la migration v14 → v15
+  renumérote (uuid → entier) mais garde les clés. Le serveur est `server:1` (un seul par Gladys).
+- **Connecté** = activé et handshake de moins de 3 min (WireGuard le renouvelle toutes les 2 min tant que des
+  paquets passent). Aucun événement de scène à la première lecture (état antérieur inconnu), ni après un
+  changement d'identifiants.
+- **Dernier handshake** en `text/text` (date locale, `TZ` injecté par le superviseur) : change seulement au
+  handshake, là où une durée « il y a N min » changerait à chaque lecture. Un état `text/text` se publie avec
+  `text`, pas `state` (le SDK refuse sinon).
+- L'interrupteur « Accès autorisé » est `read_only` tant que `allow_control` n'est pas coché (le cœur fige la
+  structure : « Mettre à jour » dans Découverte après changement), et `setValue` refuse de toute façon.
+- **Revue du 17/10/2026** (pièges corrigés, chacun figé par un test) : une reconfiguration pendant une lecture
+  relit le nouveau serveur (`poll({ fresh: true })`, lectures enchaînées, jamais en parallèle) ; un reverse proxy
+  devant un wg-easy arrêté répond 502/503/504 → `unreachable` ; un 500 en v14 après un mot de passe déjà accepté
+  est une erreur, pas un refus ; un mot de passe v14 hors Latin-1 ne passe pas dans un en-tête (refusé par Node) ;
+  pas d'événement « ne répond plus » avant une première lecture réussie (wg-easy pas encore démarré au reboot) ;
+  une réponse, même un refus, clôt une panne ; un client connecté puis supprimé dans wg-easy passe à 0 avec son
+  événement ; transports par lots de 100, republiés à la création d'un appareil.
+- **wg-easy oublie le handshake** d'un client désactivé puis réactivé (vu en vrai sur 15.4) : le hub garde le
+  dernier vu (`seenAt`, en mémoire) ; sans handshake connu, rien n'est publié (pas de « Jamais » qui écraserait
+  une vraie date après un redémarrage du conteneur).
+- Pas d'action de scène : couper un client est déjà l'action « contrôler un appareil » sur l'interrupteur.
+- Test réel reproductible : réseau `gladys-test-wg`, wg-easy avec `--cap-add NET_ADMIN`, `INSECURE=true`,
+  `INIT_ENABLED=true` (+ `INIT_USERNAME`, `INIT_PASSWORD`, `INIT_HOST`, `INIT_PORT`), puis un client
+  `lscr.io/linuxserver/wireguard` avec la configuration de `GET /api/client/{id}/configuration` (`AllowedIPs`
+  réduit au sous-réseau du VPN, sans `DNS`) et un `ping 10.8.0.1` pour le handshake. Le module noyau `wireguard`
+  de l'hôte doit être déjà chargé. v14 : `PASSWORD_HASH` généré par `wgpw` dans son image.
 
 ## Store
 

@@ -1,77 +1,104 @@
+// -----------------------------------------------------------------------------
+// The `clients` dashboard widget: content within the core vocabulary and
+// budget (validateWidgetContent), order of the rows, messages.
+// -----------------------------------------------------------------------------
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateWidgetContent } from '@gladysassistant/integration-sdk';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { buildDiscoveredDevices } from '../src/devices/index.js';
-import { simulateLanSession } from '../src/devices/plug.js';
-import { DEMO_STATUS_WIDGET, WIDGETS, refreshWidgets } from '../src/widgets.js';
-import { normalizeConfig } from '../src/config.js';
+import { WIDGET_KEY } from '../src/hub.js';
+import { ago } from '../src/widgets.js';
+import { BASE_CONFIG, FakeWgEasy, createClock, createWorld } from './helpers/world.js';
 
-const gladys = createFakeGladys();
-const config = normalizeConfig();
-const demoStatus = WIDGETS[DEMO_STATUS_WIDGET];
+// Intl separates French numbers and units with non-breaking spaces.
+const spaces = (text) => text.replace(/\s/g, ' ');
 
-// What the SDK passes to onWidgetGet, plus the config index.js adds.
-const getContent = (cfg = config) =>
-  demoStatus.get(gladys, { settings: {}, language: 'en', units: 'metric', config: cfg });
+async function content(w, language = 'en') {
+  const ack = await w.fake.widgetGet(WIDGET_KEY, { settings: {}, language });
+  assert.equal(ack.success, true, ack.error);
+  const tree = ack.data.content;
+  assert.deepEqual(validateWidgetContent(tree), [], 'within the core vocabulary and budget');
+  return tree;
+}
 
-test('the demo_status content is rendered exactly as sent', async () => {
-  // [] = nothing the core would drop, truncate or trim to the content budget.
-  assert.deepEqual(validateWidgetContent(await getContent()), []);
-});
-
-test('the degraded plug connection content is valid too', async () => {
-  simulateLanSession(false);
-  try {
-    const content = await getContent();
-    assert.deepEqual(validateWidgetContent(content), []);
-    const status = content.components.find((component) => component.type === 'status');
-    assert.ok(
-      status.items.some((item) => item.color === 'warning'),
-      'degraded shows a warning',
-    );
-  } finally {
-    simulateLanSession(true);
-  }
-});
-
-test('the live tiles reference features the integration publishes', async () => {
-  const featureIds = new Set(
-    buildDiscoveredDevices(gladys, config).flatMap((device) =>
-      device.features.map((feature) => feature.external_id),
-    ),
+test('two tiles and one row per client, the connected ones first', async (t) => {
+  const clock = createClock();
+  const server = new FakeWgEasy();
+  server.clients.push({
+    ...server.clients[0],
+    id: 3,
+    name: 'Tablet',
+    publicKey: Buffer.alloc(32, 3).toString('base64'),
+    latestHandshakeAt: new Date(clock.now() - 2 * 3_600_000).toISOString(),
+  });
+  const w = await createWorld({ clock, server });
+  t.after(() => w.app.stop());
+  const tree = await content(w);
+  const [connected, total, status] = tree.components;
+  assert.equal(connected.value, 1);
+  assert.equal(total.value, 3);
+  assert.deepEqual(
+    status.items.map((item) => [item.label, item.value]),
+    [
+      ['Alice phone', 'Connected'],
+      ['Tablet', '2 hr. ago'],
+      ['Laptop', 'Disabled'],
+    ],
   );
-  const liveTiles = (await getContent()).components.filter((c) => c.device_feature);
-  assert.ok(liveTiles.length > 0, 'the template demonstrates a device-bound tile');
-  for (const tile of liveTiles) {
-    assert.ok(featureIds.has(tile.device_feature), `unknown feature ${tile.device_feature}`);
-  }
+  const fr = await content(w, 'fr');
+  assert.deepEqual(
+    fr.components[2].items.map((item) => spaces(item.value)),
+    ['Connecté', 'il y a 2 h', 'Désactivé'],
+  );
 });
 
-test('every button action of the content is handled and answers a short toast', async () => {
-  const buttons = (await getContent()).components.filter((c) => c.type === 'button' && c.action);
-  assert.ok(buttons.length > 0, 'the template demonstrates a widget action');
-  for (const { action } of buttons) {
-    const message = await demoStatus.action(gladys, {
-      actionKey: action.key,
-      params: action.params ?? {},
-      settings: {},
-      config,
+test('more than ten clients: nine rows and a count of the others', async (t) => {
+  const server = new FakeWgEasy();
+  for (let i = 0; i < 12; i += 1) {
+    server.clients.push({
+      ...server.clients[1],
+      id: 10 + i,
+      name: `Client ${i}`,
+      publicKey: Buffer.alloc(32, 10 + i).toString('base64'),
     });
-    assert.ok(message.en, 'the toast carries at least the mandatory `en` text');
-    assert.ok(message.en.length <= 200, 'toasts are capped at 200 characters');
   }
+  const w = await createWorld({ server });
+  t.after(() => w.app.stop());
+  const { items } = (await content(w)).components[2];
+  assert.equal(items.length, 10);
+  assert.deepEqual([items.at(-1).label, items.at(-1).value], ['Other clients', 5]);
 });
 
-test('an unknown widget action fails, so the user sees the error', async () => {
-  await assert.rejects(
-    demoStatus.action(gladys, { actionKey: 'unknown', params: {}, settings: {}, config }),
-    /Unknown widget action/,
-  );
+test('messages: no address, an error, no client', async (t) => {
+  const none = await createWorld({ config: {} });
+  t.after(() => none.app.stop());
+  assert.match((await content(none)).components[0].text, /Enter the address/);
+
+  const wrong = await createWorld({ config: { ...BASE_CONFIG, password: 'wrong' } });
+  t.after(() => wrong.app.stop());
+  assert.match((await content(wrong, 'de')).components[0].text, /Passwort abgelehnt/);
+
+  const empty = await createWorld({ server: new FakeWgEasy({ clients: [] }) });
+  t.after(() => empty.app.stop());
+  assert.match((await content(empty)).components[0].text, /No client/);
 });
 
-test('refreshWidgets nudges every widget', () => {
-  const fresh = createFakeGladys();
-  refreshWidgets(fresh);
-  assert.deepEqual(fresh.fake.widgetRefreshes, Object.keys(WIDGETS));
+test('the widget is refreshed when a client connects', async (t) => {
+  const clock = createClock();
+  const server = new FakeWgEasy();
+  const w = await createWorld({ clock, server });
+  t.after(() => w.app.stop());
+  const before = w.fake.widgetRefreshes.length;
+  await w.hub.poll();
+  assert.equal(w.fake.widgetRefreshes.length, before, 'nothing changed');
+  server.find('Laptop').enabled = true;
+  server.handshake('Laptop', clock.now());
+  await w.hub.poll();
+  assert.equal(w.fake.widgetRefreshes.length, before + 1);
+});
+
+test('relative times', () => {
+  const now = Date.UTC(2026, 9, 17, 12);
+  assert.equal(ago(now - 30_000, now, 'en'), '1 min. ago');
+  assert.equal(spaces(ago(now - 3 * 86_400_000, now, 'fr')), 'il y a 3 j');
 });

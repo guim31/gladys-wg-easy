@@ -1,177 +1,440 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "WireGuard (wg-easy)",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Who is connected to your home WireGuard VPN, managed by wg-easy.",
+    "fr": "Qui est connecté au VPN WireGuard de la maison, géré par wg-easy.",
+    "de": "Wer mit dem WireGuard-VPN deines Zuhauses verbunden ist, verwaltet von wg-easy.",
+    "es": "Quién está conectado al VPN WireGuard de su casa, gestionado por wg-easy."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-wg-easy:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-wg-easy/main/cover.png",
+  "categories": ["network"],
+  "transports": ["local"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your wg-easy",
+        "fr": "Votre wg-easy",
+        "de": "Dein wg-easy",
+        "es": "Su wg-easy"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "wg-easy v15 (user name and password of a wg-easy user without two-factor authentication) or v14 (password only). The address of its web interface, port 51821 by default.",
+        "fr": "wg-easy v15 (identifiant et mot de passe d'un utilisateur wg-easy sans double authentification) ou v14 (mot de passe seul). L'adresse de son interface web, port 51821 par défaut.",
+        "de": "wg-easy v15 (Benutzername und Passwort eines wg-easy-Benutzers ohne Zwei-Faktor-Authentifizierung) oder v14 (nur Passwort). Die Adresse seiner Weboberfläche, standardmäßig Port 51821.",
+        "es": "wg-easy v15 (usuario y contraseña de un usuario de wg-easy sin autenticación de dos factores) o v14 (solo contraseña). La dirección de su interfaz web, puerto 51821 por defecto."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://wg-easy.github.io/wg-easy/latest/",
+          "label": {
+            "en": "wg-easy documentation",
+            "fr": "Documentation de wg-easy",
+            "de": "Dokumentation von wg-easy",
+            "es": "Documentación de wg-easy"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "url",
+      "type": "string",
+      "label": {
+        "en": "Address",
+        "fr": "Adresse",
+        "de": "Adresse",
+        "es": "Dirección"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
+      "description": {
+        "en": "Address of the wg-easy web interface, with https:// for HTTPS and :port.",
+        "fr": "Adresse de l'interface web de wg-easy, avec https:// pour le HTTPS et :port.",
+        "de": "Adresse der Weboberfläche von wg-easy, mit https:// für HTTPS und :Port.",
+        "es": "Dirección de la interfaz web de wg-easy, con https:// para HTTPS y :puerto."
+      },
+      "placeholder": {
+        "en": "e.g. 192.168.1.2:51821",
+        "fr": "ex. 192.168.1.2:51821",
+        "de": "z. B. 192.168.1.2:51821",
+        "es": "p. ej. 192.168.1.2:51821"
+      },
       "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "default": ""
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "key": "username",
+      "type": "string",
+      "label": {
+        "en": "User name (v15)",
+        "fr": "Identifiant (v15)",
+        "de": "Benutzername (v15)",
+        "es": "Usuario (v15)"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
-    },
-    {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "description": {
+        "en": "A wg-easy user. An admin sees every client, another user only their own. Ignored by v14.",
+        "fr": "Un utilisateur de wg-easy. Un admin voit tous les clients, un autre utilisateur seulement les siens. Ignoré en v14.",
+        "de": "Ein wg-easy-Benutzer. Ein Admin sieht alle Clients, ein anderer Benutzer nur seine eigenen. In v14 ignoriert.",
+        "es": "Un usuario de wg-easy. Un administrador ve todos los clientes, otro usuario solo los suyos. Se ignora en v14."
+      },
       "required": false,
-      "default": "celsius",
+      "default": "admin"
+    },
+    {
+      "key": "password",
+      "type": "secret",
+      "label": {
+        "en": "Password",
+        "fr": "Mot de passe",
+        "de": "Passwort",
+        "es": "Contraseña"
+      },
+      "description": {
+        "en": "Password of this user (v15) or of the web interface (v14).",
+        "fr": "Mot de passe de cet utilisateur (v15) ou de l'interface web (v14).",
+        "de": "Passwort dieses Benutzers (v15) oder der Weboberfläche (v14).",
+        "es": "Contraseña de este usuario (v15) o de la interfaz web (v14)."
+      },
+      "required": false
+    },
+    {
+      "key": "allow_self_signed",
+      "type": "boolean",
+      "label": {
+        "en": "Accept self-signed certificates",
+        "fr": "Accepter les certificats auto-signés",
+        "de": "Selbstsignierte Zertifikate akzeptieren",
+        "es": "Aceptar certificados autofirmados"
+      },
+      "description": {
+        "en": "Only for an https:// address whose certificate is not signed by a known authority.",
+        "fr": "Seulement pour une adresse https:// dont le certificat n'est pas signé par une autorité connue.",
+        "de": "Nur für eine https://-Adresse, deren Zertifikat nicht von einer bekannten Stelle signiert ist.",
+        "es": "Solo para una dirección https:// cuyo certificado no esté firmado por una autoridad conocida."
+      },
+      "required": false,
+      "default": false
+    },
+    {
+      "key": "poll_interval",
+      "type": "select",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
+      "description": {
+        "en": "How often wg-easy is read. Each reading checks the password on the wg-easy side.",
+        "fr": "Fréquence de lecture de wg-easy. Chaque lecture vérifie le mot de passe côté wg-easy.",
+        "de": "Wie oft wg-easy abgefragt wird. Jede Abfrage prüft das Passwort auf der Seite von wg-easy.",
+        "es": "Frecuencia de lectura de wg-easy. Cada lectura comprueba la contraseña en wg-easy."
+      },
+      "required": false,
+      "default": "30",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "15",
+          "label": {
+            "en": "15 s",
+            "fr": "15 s",
+            "de": "15 s",
+            "es": "15 s"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "30 s",
+            "fr": "30 s",
+            "de": "30 s",
+            "es": "30 s"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "60 s",
+            "fr": "60 s",
+            "de": "60 s",
+            "es": "60 s"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "allow_control",
+      "type": "boolean",
+      "label": {
+        "en": "Allow enabling and disabling clients",
+        "fr": "Autoriser l'activation et la désactivation des clients",
+        "de": "Aktivieren und Deaktivieren der Clients erlauben",
+        "es": "Permitir habilitar y deshabilitar clientes"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Off: the \"Access enabled\" switch is read only. On: Gladys, its scenes and voice assistants can cut a client's access.",
+        "fr": "Désactivé : l'interrupteur « Accès autorisé » est en lecture seule. Activé : Gladys, ses scènes et les assistants vocaux peuvent couper l'accès d'un client.",
+        "de": "Aus: Der Schalter „Zugang aktiviert“ ist schreibgeschützt. An: Gladys, ihre Szenen und Sprachassistenten können den Zugang eines Clients sperren.",
+        "es": "Desactivado: el interruptor «Acceso habilitado» es de solo lectura. Activado: Gladys, sus escenas y los asistentes de voz pueden cortar el acceso de un cliente."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": false
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the names",
+        "fr": "Langue des noms",
+        "de": "Sprache der Namen",
+        "es": "Idioma de los nombres"
+      },
+      "description": {
+        "en": "Language of the feature names and of the last handshake date, set when a device is added.",
+        "fr": "Langue des noms de fonctionnalités et de la date du dernier handshake, fixée à l'ajout d'un appareil.",
+        "de": "Sprache der Funktionsnamen und des Datums des letzten Handshakes, beim Hinzufügen eines Geräts festgelegt.",
+        "es": "Idioma de los nombres de las funciones y de la fecha del último handshake, fijado al añadir un dispositivo."
+      },
+      "required": false,
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
       "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "client_connected",
+      "label": {
+        "en": "VPN client connected",
+        "fr": "Client VPN connecté",
+        "de": "VPN-Client verbunden",
+        "es": "Cliente VPN conectado"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "A WireGuard client connected to the home VPN (first handshake after 3 minutes of silence).",
+        "fr": "Un client WireGuard s'est connecté au VPN de la maison (handshake après 3 minutes de silence).",
+        "de": "Ein WireGuard-Client hat sich mit dem VPN des Zuhauses verbunden (Handshake nach 3 Minuten Stille).",
+        "es": "Un cliente WireGuard se ha conectado al VPN de la casa (handshake tras 3 minutos de silencio)."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
+          "label": {
+            "en": "Client (empty: any)",
+            "fr": "Client (vide : n'importe lequel)",
+            "de": "Client (leer: beliebig)",
+            "es": "Cliente (vacío: cualquiera)"
+          }
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "client",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Client name",
+            "fr": "Nom du client",
+            "de": "Name des Clients",
+            "es": "Nombre del cliente"
+          }
+        },
+        {
+          "key": "device",
+          "type": "string",
+          "label": {
+            "en": "Client device",
+            "fr": "Appareil du client",
+            "de": "Gerät des Clients",
+            "es": "Dispositivo del cliente"
+          }
         }
       ]
-    }
-  ],
-  "scene_actions": [
+    },
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "client_disconnected",
+      "label": {
+        "en": "VPN client disconnected",
+        "fr": "Client VPN déconnecté",
+        "de": "VPN-Client getrennt",
+        "es": "Cliente VPN desconectado"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "A WireGuard client has had no handshake for 3 minutes, or was disabled.",
+        "fr": "Un client WireGuard n'a plus fait de handshake depuis 3 minutes, ou a été désactivé.",
+        "de": "Ein WireGuard-Client hatte seit 3 Minuten keinen Handshake mehr oder wurde deaktiviert.",
+        "es": "Un cliente WireGuard lleva 3 minutos sin handshake o ha sido deshabilitado."
+      },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "label": {
+            "en": "Client (empty: any)",
+            "fr": "Client (vide : n'importe lequel)",
+            "de": "Client (leer: beliebig)",
+            "es": "Cliente (vacío: cualquiera)"
+          }
         }
       ],
-      "outputs": [
+      "variables": [
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "client",
+          "type": "string",
+          "label": {
+            "en": "Client name",
+            "fr": "Nom du client",
+            "de": "Name des Clients",
+            "es": "Nombre del cliente"
+          }
+        },
+        {
+          "key": "device",
+          "type": "string",
+          "label": {
+            "en": "Client device",
+            "fr": "Appareil du client",
+            "de": "Gerät des Clients",
+            "es": "Dispositivo del cliente"
+          }
+        },
+        {
+          "key": "connected_minutes",
+          "type": "number",
+          "label": {
+            "en": "Minutes connected",
+            "fr": "Minutes de connexion",
+            "de": "Minuten verbunden",
+            "es": "Minutos conectado"
+          }
+        }
+      ]
+    },
+    {
+      "key": "server_unreachable",
+      "label": {
+        "en": "wg-easy no longer answers",
+        "fr": "wg-easy ne répond plus",
+        "de": "wg-easy antwortet nicht mehr",
+        "es": "wg-easy ya no responde"
+      },
+      "description": {
+        "en": "wg-easy stopped answering (two readings in a row): the VPN of the home may be down.",
+        "fr": "wg-easy ne répond plus (deux lectures de suite) : le VPN de la maison est peut-être en panne.",
+        "de": "wg-easy antwortet nicht mehr (zwei Abfragen in Folge): Das VPN des Zuhauses ist vielleicht ausgefallen.",
+        "es": "wg-easy ha dejado de responder (dos lecturas seguidas): el VPN de la casa puede estar caído."
+      },
+      "variables": [
+        {
+          "key": "error",
+          "type": "string",
+          "label": {
+            "en": "Error",
+            "fr": "Erreur",
+            "de": "Fehler",
+            "es": "Error"
+          }
+        }
+      ]
+    },
+    {
+      "key": "server_recovered",
+      "label": {
+        "en": "wg-easy answers again",
+        "fr": "wg-easy répond à nouveau",
+        "de": "wg-easy antwortet wieder",
+        "es": "wg-easy responde de nuevo"
+      },
+      "description": {
+        "en": "wg-easy answers again after an outage.",
+        "fr": "wg-easy répond à nouveau après une panne.",
+        "de": "wg-easy antwortet nach einem Ausfall wieder.",
+        "es": "wg-easy responde de nuevo tras una avería."
+      },
+      "variables": [
+        {
+          "key": "down_minutes",
+          "type": "number",
+          "label": {
+            "en": "Minutes without answer",
+            "fr": "Minutes sans réponse",
+            "de": "Minuten ohne Antwort",
+            "es": "Minutos sin respuesta"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "clients",
+      "label": {
+        "en": "VPN clients",
+        "fr": "Clients VPN",
+        "de": "VPN-Clients",
+        "es": "Clientes VPN"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "Who is connected to the home VPN, and when the others were last seen.",
+        "fr": "Qui est connecté au VPN de la maison, et quand les autres ont été vus.",
+        "de": "Wer mit dem VPN des Zuhauses verbunden ist und wann die anderen zuletzt da waren.",
+        "es": "Quién está conectado al VPN de la casa y cuándo se vio a los demás."
+      },
+      "icon": "shield"
     }
   ]
 }
