@@ -234,6 +234,16 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
   `text`, pas `state` (le SDK refuse sinon).
 - L'interrupteur « Accès autorisé » est `read_only` tant que `allow_control` n'est pas coché (le cœur fige la
   structure : « Mettre à jour » dans Découverte après changement), et `setValue` refuse de toute façon.
+- **Revue du 17/10/2026** (pièges corrigés, chacun figé par un test) : une reconfiguration pendant une lecture
+  relit le nouveau serveur (`poll({ fresh: true })`, lectures enchaînées, jamais en parallèle) ; un reverse proxy
+  devant un wg-easy arrêté répond 502/503/504 → `unreachable` ; un 500 en v14 après un mot de passe déjà accepté
+  est une erreur, pas un refus ; un mot de passe v14 hors Latin-1 ne passe pas dans un en-tête (refusé par Node) ;
+  pas d'événement « ne répond plus » avant une première lecture réussie (wg-easy pas encore démarré au reboot) ;
+  une réponse, même un refus, clôt une panne ; un client connecté puis supprimé dans wg-easy passe à 0 avec son
+  événement ; transports par lots de 100, republiés à la création d'un appareil.
+- **wg-easy oublie le handshake** d'un client désactivé puis réactivé (vu en vrai sur 15.4) : le hub garde le
+  dernier vu (`seenAt`, en mémoire) ; sans handshake connu, rien n'est publié (pas de « Jamais » qui écraserait
+  une vraie date après un redémarrage du conteneur).
 - Pas d'action de scène : couper un client est déjà l'action « contrôler un appareil » sur l'interrupteur.
 - Test réel reproductible : réseau `gladys-test-wg`, wg-easy avec `--cap-add NET_ADMIN`, `INSECURE=true`,
   `INIT_ENABLED=true` (+ `INIT_USERNAME`, `INIT_PASSWORD`, `INIT_HOST`, `INIT_PORT`), puis un client

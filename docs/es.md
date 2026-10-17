@@ -66,7 +66,7 @@ funcionan incluso para los clientes no añadidos a Gladys.
 | Acceso habilitado       | Si el cliente está habilitado en wg-easy (un interruptor, de solo lectura por defecto) |
 | Recibido por el cliente | Datos descargados por el cliente a través del VPN, en MB                               |
 | Enviado por el cliente  | Datos enviados por el cliente a través del VPN, en MB                                  |
-| Último handshake        | Fecha y hora del último handshake de WireGuard, o «Nunca»                              |
+| Último handshake        | Fecha y hora del último handshake de WireGuard visto (vacío hasta entonces)            |
 
 **Conectado** sigue al propio WireGuard: mientras pasan paquetes, el cliente
 renueva su handshake cada 2 minutos. Un cliente que deja de enviar (un teléfono
@@ -75,6 +75,9 @@ después de su último handshake, aunque su túnel siga «activado» en el telé
 
 Los contadores de datos son los de la interfaz WireGuard: vuelven a cero al
 reiniciar wg-easy o su interfaz, y se desconocen para un cliente deshabilitado.
+
+wg-easy olvida el último handshake de un cliente deshabilitado o habilitado
+de nuevo: la integración sigue mostrando el último que vio.
 
 **Acceso habilitado** es de solo lectura mientras no marque **Permitir
 habilitar y deshabilitar clientes**. Una vez marcada, Gladys, sus escenas y los
@@ -91,7 +94,7 @@ wg-easy, o pasar de la v14 a la v15, conserva el dispositivo y su historial.
 El widget **Clientes VPN** muestra el número de clientes conectados y de
 clientes, y luego una línea por cliente: primero los conectados (_Conectado_),
 luego los demás con el tiempo transcurrido desde su último handshake (_hace
-2 h_ o _Nunca conectado_), los deshabilitados al final (_Deshabilitado_). Diez
+2 h_ o _Ningún handshake conocido_), los deshabilitados al final (_Deshabilitado_). Diez
 líneas como máximo; más allá, la última línea cuenta los demás clientes.
 
 ## Escenas

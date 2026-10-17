@@ -43,7 +43,7 @@ test('the first reading publishes the server, the clients and their states, with
   assert.equal(state(w.alice, FEATURE_KEYS.ENABLED), 1);
   assert.equal(state(w.laptop, FEATURE_KEYS.CONNECTED), 0);
   assert.equal(state(w.laptop, FEATURE_KEYS.ENABLED), 0);
-  assert.equal(state(w.laptop, FEATURE_KEYS.HANDSHAKE), 'Never');
+  assert.equal(state(w.laptop, FEATURE_KEYS.HANDSHAKE), undefined, 'no handshake known');
   // 13:11 UTC, in the time zone of Gladys (Europe/Paris in the tests).
   assert.match(state(w.alice, FEATURE_KEYS.HANDSHAKE), /3:11/);
   assert.equal(w.fake.lastState(serverFeatureId(w.gladys, FEATURE_KEYS.CONNECTED_CLIENTS)), 1);
@@ -129,7 +129,7 @@ test('only the changes are published, and everything again at the heartbeat', as
   clock.advance(HUB_TIMINGS.heartbeatMs);
   w.server.handshake('Alice phone', clock.now(), { rx: 0, tx: 0 });
   await w.hub.poll();
-  assert.ok(w.fake.states.length - count >= 10, 'every value sent again');
+  assert.ok(w.fake.states.length - count >= 9, 'every value sent again');
 });
 
 test('a new client appears in the discovery; a removed one disappears', async (t) => {
@@ -232,8 +232,11 @@ test('no address, or an address not understood', async (t) => {
 
 test('a new language republishes the handshake texts; new credentials start over', async (t) => {
   const w = await world(t);
+  const before = w.fake.lastState(w.alice.feature(FEATURE_KEYS.HANDSHAKE));
   await w.fake.configUpdated({ ...BASE_CONFIG, language: 'de' });
-  assert.equal(w.fake.lastState(w.laptop.feature(FEATURE_KEYS.HANDSHAKE)), 'Nie');
+  const after = w.fake.lastState(w.alice.feature(FEATURE_KEYS.HANDSHAKE));
+  assert.notEqual(after, before);
+  assert.match(after, /^17\.10\.26, 15:11$/);
   await w.fake.configUpdated({ ...BASE_CONFIG, language: 'de', password: 'other' });
   assert.equal(w.fake.connectionStatus.connected, false);
   // Back to the right password: no event for the clients found again.
@@ -251,4 +254,83 @@ test('"Test the connection" reports the version and the clients, or the error', 
   w.server.online = false;
   const down = await w.fake.action('test_connection', {});
   assert.equal(down.data.message.en, 'wg-easy does not answer');
+});
+
+test('a client disabled then enabled again keeps its last handshake (wg-easy forgets it)', async (t) => {
+  const server = new FakeWgEasy();
+  const w = await world(t, { server, config: { ...BASE_CONFIG, allow_control: true } });
+  const text = () => w.fake.lastState(w.alice.feature(FEATURE_KEYS.HANDSHAKE));
+  const before = text();
+  assert.equal(typeof before, 'string');
+  server.find('Alice phone').enabled = false;
+  await w.hub.poll();
+  assert.equal(text(), before);
+  // Enabled again: wg-easy has no handshake for it until the client talks.
+  server.find('Alice phone').enabled = true;
+  server.find('Alice phone').latestHandshakeAt = null;
+  await w.hub.poll();
+  assert.equal(text(), before);
+  assert.equal(w.fake.lastState(w.alice.feature(FEATURE_KEYS.CONNECTED)), 0);
+});
+
+test('a connected client deleted in wg-easy is shown disconnected, with its event', async (t) => {
+  const server = new FakeWgEasy();
+  const w = await world(t, { server });
+  server.clients.splice(0, 1);
+  await w.hub.poll();
+  assert.equal(w.fake.lastState(w.alice.feature(FEATURE_KEYS.CONNECTED)), 0);
+  assert.equal(w.events(TRIGGERS.DISCONNECTED)[0].data.client, 'Alice phone');
+  assert.equal(w.fake.discoveredDevices.length, 2);
+});
+
+test('no outage event before a first successful reading (wg-easy not started yet)', async (t) => {
+  const server = new FakeWgEasy();
+  server.online = false;
+  const w = await world(t, { server });
+  await w.hub.poll();
+  await w.hub.poll();
+  assert.deepEqual(w.fake.sceneEvents, []);
+  server.online = true;
+  await w.hub.poll();
+  assert.deepEqual(w.fake.sceneEvents, []);
+});
+
+test('back after an outage, even to refuse the password: the outage is over', async (t) => {
+  const clock = createClock();
+  const w = await world(t, { clock });
+  w.server.online = false;
+  await w.hub.poll();
+  await w.hub.poll();
+  clock.advance(5 * 60_000);
+  w.server.online = true;
+  w.server.password = 'changed';
+  await w.hub.poll();
+  assert.deepEqual(w.events(TRIGGERS.RECOVERED), [
+    { key: TRIGGERS.RECOVERED, data: { down_minutes: 5 } },
+  ]);
+  assert.match(w.fake.connectionStatus.message.en, /password refused/);
+});
+
+test('a new configuration during a reading reads the new server, not the stale reading', async (t) => {
+  const w = await world(t, { config: {} });
+  // A slow reading of the old address is in flight...
+  let release;
+  const slow = new Promise((resolve) => {
+    release = resolve;
+  });
+  const request = w.network.request;
+  w.hub.request = async (url, options) => {
+    await slow;
+    return request(url, options);
+  };
+  const first = w.fake.configUpdated({ ...BASE_CONFIG, url: 'http://192.0.2.99:51821' });
+  await new Promise((resolve) => setImmediate(resolve));
+  // ...when the user corrects the address.
+  const second = w.fake.configUpdated(BASE_CONFIG);
+  await new Promise((resolve) => setImmediate(resolve));
+  release();
+  await Promise.all([first, second]);
+  const ack = await w.fake.action('test_connection', {});
+  assert.equal(ack.data.message.en, 'wg-easy v15 answers: 2 client(s), 1 connected.');
+  assert.equal(w.fake.connectionStatus.connected, true);
 });

@@ -159,8 +159,14 @@ export class WgEasyHub {
       this.published.clear();
     }
     this.discovered = null;
-    await this.poll();
-    this.schedulePoll();
+    try {
+      // Fresh: a reading in flight may be of the previous server, or may
+      // have published before `published` was cleared.
+      await this.poll({ fresh: true });
+    } finally {
+      // Even after an unexpected error: the timer keeps reading.
+      this.schedulePoll();
+    }
   }
 
   async stop() {
@@ -202,11 +208,23 @@ export class WgEasyHub {
   // --- Reading the server ----------------------------------------------------
 
   /** Read the server and apply what changed. Concurrent calls share the read. */
-  poll() {
-    this.polling ??= this.readServer().finally(() => {
-      this.polling = null;
-    });
-    return this.polling;
+  poll({ fresh = false } = {}) {
+    if (this.polling && !fresh && this.pollingFor === this.client) {
+      return this.polling;
+    }
+    // Chained after the reading in flight, never alongside it.
+    const previous = this.polling ?? Promise.resolve();
+    this.pollingFor = this.client;
+    const current = previous
+      .catch(() => {})
+      .then(() => this.readServer())
+      .finally(() => {
+        if (this.polling === current) {
+          this.polling = null;
+        }
+      });
+    this.polling = current;
+    return current;
   }
 
   /** Gladys asks for a refresh (onPoll): read now. */
@@ -260,6 +278,10 @@ export class WgEasyHub {
     const next = new Map();
     for (const client of list) {
       const before = this.clients.get(client.key);
+      // wg-easy forgets the handshake of a disabled client, and of a client
+      // enabled again (seen on 15.4): show the last one known, not "Never".
+      // Only `handshakeAt` decides whether it is connected.
+      client.seenAt = client.handshakeAt ?? before?.client.seenAt ?? null;
       const connected = isConnected(client, now);
       const entry = {
         client,
@@ -277,15 +299,19 @@ export class WgEasyHub {
         await this.fireClient(entry, before, now);
       }
     }
+    const removed = [];
     for (const [key, before] of this.clients) {
       if (!next.has(key)) {
         widgetChanged = true;
+        removed.push(before);
+        logger.debug(`Client ${before.client.name} removed from wg-easy`);
         if (before.connected) {
-          logger.debug(`Client ${before.client.name} removed from wg-easy`);
+          await this.fireClient({ client: before.client, connected: false }, before, now);
         }
       }
     }
     this.clients = next;
+    await this.forget(removed);
     this.read = true;
 
     await this.publishDevices();
@@ -294,6 +320,34 @@ export class WgEasyHub {
     await this.publishConnectionStatus();
     if (widgetChanged) {
       this.gladys.requestWidgetRefresh(WIDGET_KEY);
+    }
+  }
+
+  /**
+   * Clients deleted in wg-easy: their devices may remain in Gladys, shown
+   * disconnected; their last values are forgotten, should they come back.
+   */
+  async forget(entries) {
+    const states = [];
+    for (const { client, connected } of entries) {
+      const ids = clientIds(this.gladys, client.key);
+      for (const externalId of [...this.published.keys()]) {
+        if (externalId.startsWith(`${ids.device}:`)) {
+          this.published.delete(externalId);
+        }
+      }
+      this.transports.delete(ids.device);
+      if (connected) {
+        states.push({ device_feature_external_id: ids.feature(FEATURE_KEYS.CONNECTED), state: 0 });
+      }
+    }
+    if (states.length === 0) {
+      return;
+    }
+    try {
+      await this.gladys.publishStates(states);
+    } catch (err) {
+      this.problem('states', `States refused: ${err.message}`);
     }
   }
 
@@ -331,14 +385,24 @@ export class WgEasyHub {
         this.downSince = this.now();
         this.scheduleRetry();
       }
-      if (!this.down && this.failures >= this.timings.downAfterFailures) {
+      // Never before a first successful reading: at a reboot of the host,
+      // wg-easy may simply not be started yet.
+      if (this.read && !this.down && this.failures >= this.timings.downAfterFailures) {
         this.down = true;
         await this.fire(TRIGGERS.UNREACHABLE, {
           error: pick(ERROR_TEXT[err.kind], this.config.language),
         });
       }
     } else {
+      // It answers, if only to refuse: the outage is over.
+      if (this.down) {
+        await this.fire(TRIGGERS.RECOVERED, {
+          down_minutes: Math.round((this.now() - this.downSince) / 60_000),
+        });
+      }
       this.failures = 0;
+      this.down = false;
+      this.downSince = null;
     }
     await this.publishDevices();
     await this.publishTransports(false);
@@ -453,17 +517,18 @@ export class WgEasyHub {
         entries.push({ external_id: externalId, transport });
       }
     }
-    if (entries.length === 0) {
-      return;
-    }
-    try {
-      await this.gladys.publishTransports(entries);
-      for (const entry of entries) {
-        this.transports.set(entry.external_id, entry.transport);
+    // The SDK takes 100 entries per call.
+    for (let at = 0; at < entries.length; at += 100) {
+      const batch = entries.slice(at, at + 100);
+      try {
+        await this.gladys.publishTransports(batch);
+        for (const entry of batch) {
+          this.transports.set(entry.external_id, entry.transport);
+        }
+        this.resolved('transports');
+      } catch (err) {
+        this.problem('transports', `Transports refused: ${err.message}`);
       }
-      this.resolved('transports');
-    } catch (err) {
-      this.problem('transports', `Transports refused: ${err.message}`);
     }
   }
 
@@ -503,6 +568,11 @@ export class WgEasyHub {
       clientKeyOf(this.gladys, device.external_id)
     ) {
       await this.publishStates({ force: true, only: device.external_id });
+      // Sent before the device existed, the transport was dropped by Gladys.
+      this.transports.delete(device.external_id);
+      if (this.read || this.error) {
+        await this.publishTransports(this.error === null);
+      }
       this.gladys.requestWidgetRefresh(WIDGET_KEY);
     }
   }

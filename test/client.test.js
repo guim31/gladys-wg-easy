@@ -195,3 +195,23 @@ test('the password never appears in an error message', async () => {
     .catch((e) => e);
   assert.ok(!err.message.includes('top-secret'));
 });
+
+test('a proxy in front of a stopped wg-easy (502, 503, 504) means unreachable', async () => {
+  for (const status of [502, 503, 504]) {
+    const proxy = { handle: async () => ({ status, headers: {}, body: 'Bad Gateway' }) };
+    await rejectsWith(clientFor(proxy).listClients(), ERROR_KINDS.UNREACHABLE);
+  }
+});
+
+test('v14: a 500 after the password was accepted is an error, not a refusal', async () => {
+  const server = new FakeWgEasy({ version: 14 });
+  const client = clientFor(server);
+  await client.listClients();
+  server.handle14 = () => ({ status: 500, headers: {}, body: '{"statusCode":500}' });
+  await rejectsWith(client.listClients(), ERROR_KINDS.HTTP);
+});
+
+test('v14: a password Node cannot put in a header is reported as such', async () => {
+  const server = new FakeWgEasy({ version: 14 });
+  await rejectsWith(clientFor(server, { password: 'pass€' }).listClients(), ERROR_KINDS.AUTH);
+});

@@ -115,15 +115,16 @@ for (const scenario of scenarios) {
 
           // The value read from the fixtures fits the declared bounds.
           const value = gladys.fake.lastState(feature.external_id);
-          if (feature.category === 'text') {
-            // A text/text state is never empty, or Gladys ignores it.
-            assert.equal(typeof value, 'string', `${at}: no text published`);
-            assert.ok(value.trim().length > 0, `${at}: empty text`);
+          if (value === undefined) {
+            // Only what wg-easy does not know may be missing: the traffic of
+            // a disabled client, a handshake not seen yet.
+            assert.ok(['size', 'text'].includes(feature.type), `${at}: no state published`);
             continue;
           }
-          if (value === undefined) {
-            // Only the traffic of a disabled client is unknown (not in `wg show`).
-            assert.ok(feature.type === 'size', `${at}: no state published`);
+          if (feature.category === 'text') {
+            // A text/text state is never empty, or Gladys ignores it.
+            assert.equal(typeof value, 'string', `${at}: ${value} is not a text`);
+            assert.ok(value.trim().length > 0, `${at}: empty text`);
             continue;
           }
           assert.equal(typeof value, 'number', `${at}: ${value} is not a number`);

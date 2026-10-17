@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { LANGUAGES } from '../src/config.js';
-import { NAMES, NEVER } from '../src/devices.js';
+import { NAMES } from '../src/devices.js';
 import {
   COMMAND_TEXT,
   CONNECTION_TEXT,
@@ -153,7 +153,6 @@ test('every message table of the code has the four languages', () => {
     ...Object.entries(COMMAND_TEXT).flatMap(([key, value]) =>
       problems(value, `COMMAND_TEXT.${key}`, MAX.message),
     ),
-    ...problems(NEVER, 'NEVER', MAX.featureName),
     ...Object.entries(ERROR_TEXT).flatMap(([key, value]) =>
       problems(value, `ERROR_TEXT.${key}`, 100),
     ),

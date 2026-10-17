@@ -92,9 +92,6 @@ export const NAMES = {
   },
 };
 
-// The last handshake of a client that never connected.
-export const NEVER = { en: 'Never', fr: 'Jamais', de: 'Nie', es: 'Nunca' };
-
 // Display bounds (the core never applies them on write).
 const MAX_MEGABYTES = 100_000_000; // 100 TB
 const MAX_CLIENTS = 65_535;
@@ -119,10 +116,14 @@ export function isConnected(client, now) {
   );
 }
 
-/** The local date and time of a handshake, in the configured language (TZ of Gladys). */
+/**
+ * The local date and time of a handshake, in the configured language (TZ of
+ * Gladys). Null when none is known: wg-easy forgets the handshake of a client
+ * disabled or enabled again, so "never" cannot be told from "not known".
+ */
 export function formatHandshake(time, language) {
-  if (time === null) {
-    return NEVER[language] ?? NEVER.en;
+  if (time === null || time === undefined) {
+    return null;
   }
   return new Intl.DateTimeFormat(language, { dateStyle: 'short', timeStyle: 'short' }).format(
     new Date(time),
@@ -176,7 +177,8 @@ const CLIENT_FEATURES = [
         keep_history: false,
         max: 0,
       }),
-    value: ({ client, language }) => formatHandshake(client.handshakeAt, language),
+    // `seenAt`: the last handshake known to the hub (src/hub.js).
+    value: ({ client, language }) => formatHandshake(client.seenAt ?? client.handshakeAt, language),
   },
 ];
 

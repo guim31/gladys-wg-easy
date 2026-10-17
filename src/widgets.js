@@ -25,10 +25,10 @@ export const TEXT = {
   clients: { en: 'Clients', fr: 'Clients', de: 'Clients', es: 'Clientes' },
   online: { en: 'Connected', fr: 'Connecté', de: 'Verbunden', es: 'Conectado' },
   never: {
-    en: 'Never connected',
-    fr: 'Jamais connecté',
-    de: 'Nie verbunden',
-    es: 'Nunca conectado',
+    en: 'No handshake known',
+    fr: 'Aucun handshake connu',
+    de: 'Kein Handshake bekannt',
+    es: 'Ningún handshake conocido',
   },
   disabled: { en: 'Disabled', fr: 'Désactivé', de: 'Deaktiviert', es: 'Deshabilitado' },
   more: { en: 'Other clients', fr: 'Autres clients', de: 'Weitere Clients', es: 'Otros clientes' },
@@ -81,7 +81,7 @@ export function sortEntries(entries) {
   return [...entries].sort(
     (a, b) =>
       rank(a) - rank(b) ||
-      (rank(a) === 1 ? (b.client.handshakeAt ?? 0) - (a.client.handshakeAt ?? 0) : 0) ||
+      (rank(a) === 1 ? (b.client.seenAt ?? 0) - (a.client.seenAt ?? 0) : 0) ||
       a.client.name.localeCompare(b.client.name),
   );
 }
@@ -108,9 +108,9 @@ function row({ client, connected }, now, language) {
     label,
     icon: 'wifi-off',
     value: fit(
-      client.handshakeAt === null
+      client.seenAt === null || client.seenAt === undefined
         ? pick(TEXT.never, language)
-        : ago(client.handshakeAt, now, language),
+        : ago(client.seenAt, now, language),
       40,
     ),
     color: WIDGET_COLORS.NEUTRAL,

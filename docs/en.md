@@ -64,7 +64,7 @@ work even for clients you did not add to Gladys.
 | Access enabled         | Whether the client is enabled in wg-easy (a switch, read only by default)        |
 | Received by the client | Data the client downloaded through the VPN, in MB                                |
 | Sent by the client     | Data the client uploaded through the VPN, in MB                                  |
-| Last handshake         | Date and time of the last WireGuard handshake, or "Never"                        |
+| Last handshake         | Date and time of the last WireGuard handshake seen (empty until then)            |
 
 **Connected** follows WireGuard itself: while packets flow, the client renews
 its handshake every 2 minutes. A client that stops sending anything (a phone
@@ -73,6 +73,9 @@ its last handshake, even if its tunnel is still "on" on the phone.
 
 The data counters are those of the WireGuard interface: they restart from zero
 when wg-easy or its interface restarts, and are unknown for a disabled client.
+
+wg-easy forgets the last handshake of a client that is disabled or enabled
+again: the integration keeps showing the last one it saw.
 
 **Access enabled** is read only unless you tick **Allow enabling and disabling
 clients**. Once ticked, Gladys, its scenes and voice assistants can cut the
@@ -88,8 +91,7 @@ migrating from v14 to v15, keeps the device and its history.
 
 The **VPN clients** widget shows the number of connected clients and of
 clients, then one row per client: the connected ones first (_Connected_), then
-the others with the time since their last handshake (_2 hr. ago_ or _Never
-connected_), the disabled ones last (_Disabled_). Ten rows at most; beyond,
+the others with the time since their last handshake (_2 hr. ago_ or _No handshake known_), the disabled ones last (_Disabled_). Ten rows at most; beyond,
 the last row counts the other clients.
 
 ## Scenes

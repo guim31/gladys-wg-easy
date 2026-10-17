@@ -70,7 +70,7 @@ hast.
 | Zugang aktiviert     | Ob der Client in wg-easy aktiviert ist (ein Schalter, standardmäßig schreibgeschützt) |
 | Vom Client empfangen | Daten, die der Client über das VPN heruntergeladen hat, in MB                         |
 | Vom Client gesendet  | Daten, die der Client über das VPN hochgeladen hat, in MB                             |
-| Letzter Handshake    | Datum und Uhrzeit des letzten WireGuard-Handshakes, oder „Nie“                        |
+| Letzter Handshake    | Datum und Uhrzeit des letzten gesehenen WireGuard-Handshakes (vorher leer)            |
 
 **Verbunden** folgt WireGuard selbst: Solange Pakete fließen, erneuert der
 Client seinen Handshake alle 2 Minuten. Ein Client, der nichts mehr sendet
@@ -81,6 +81,10 @@ noch „an“ ist.
 Die Datenzähler sind die der WireGuard-Schnittstelle: Diese beginnen bei null,
 wenn wg-easy oder seine Schnittstelle neu startet, und sind für einen
 deaktivierten Client unbekannt.
+
+wg-easy vergisst den letzten Handshake eines deaktivierten oder wieder
+aktivierten Clients: Die Integration zeigt weiter den letzten, den sie gesehen
+hat.
 
 **Zugang aktiviert** ist schreibgeschützt, solange du **Aktivieren und
 Deaktivieren der Clients erlauben** nicht ankreuzt. Danach können Gladys, ihre
@@ -99,7 +103,7 @@ seinen Verlauf.
 Das Widget **VPN-Clients** zeigt die Zahl der verbundenen Clients und der
 Clients, dann eine Zeile pro Client: zuerst die verbundenen (_Verbunden_),
 dann die anderen mit der Zeit seit ihrem letzten Handshake (_vor 2 Std._ oder
-_Nie verbunden_), zuletzt die deaktivierten (_Deaktiviert_). Höchstens zehn
+_Kein Handshake bekannt_), zuletzt die deaktivierten (_Deaktiviert_). Höchstens zehn
 Zeilen; darüber hinaus zählt die letzte Zeile die weiteren Clients.
 
 ## Szenen

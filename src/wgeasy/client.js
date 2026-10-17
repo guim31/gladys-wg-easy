@@ -156,6 +156,8 @@ export class WgEasyClient {
     this.request = request;
     /** 15 or 14 once known. */
     this.version = null;
+    /** These credentials were accepted at least once. */
+    this.accepted = false;
   }
 
   headers(version) {
@@ -170,11 +172,17 @@ export class WgEasyClient {
   }
 
   async call(version, path, { method = 'GET' } = {}) {
+    // Node refuses a header with characters outside Latin-1 (v14 sends the
+    // password as is): say so, rather than a network error.
+    if (version === 14 && /[^\t\x20-\x7e\x80-\xff]/.test(this.password)) {
+      throw new WgEasyError(ERROR_KINDS.AUTH, 'Password not usable in an HTTP header');
+    }
+    const headers = this.headers(version);
     let response;
     try {
       response = await this.request(`${this.url}${path}`, {
         method,
-        headers: this.headers(version),
+        headers,
         insecure: this.insecure,
         // A POST without body: h3 then reads no JSON.
         ...(method === 'POST' ? { json: {} } : {}),
@@ -202,7 +210,14 @@ export class WgEasyClient {
       const { status, data } = await this.call(version, PATHS[version].list);
       if (status === 200 && Array.isArray(data)) {
         this.version = version;
+        this.accepted = true;
         return data.map(normalizeClient).filter(Boolean);
+      }
+      if ([502, 503, 504].includes(status)) {
+        // A reverse proxy in front of a stopped wg-easy.
+        throw new WgEasyError(ERROR_KINDS.UNREACHABLE, `Proxy answers HTTP ${status}`, {
+          status,
+        });
       }
       if (status === 403) {
         throw new WgEasyError(ERROR_KINDS.FORBIDDEN, 'Access refused (HTTP 403)', { status });
@@ -210,8 +225,10 @@ export class WgEasyClient {
       statuses.push(status);
     }
     this.version = null;
+    // A v14 refuses a password with a 500, but also fails with a 500 when
+    // WireGuard does: once these credentials were accepted, a 500 is an error.
     const v14Status = statuses[order.indexOf(14)];
-    if (statuses.includes(401) || v14Status === 500) {
+    if (statuses.includes(401) || (v14Status === 500 && !this.accepted)) {
       throw new WgEasyError(ERROR_KINDS.AUTH, 'Credentials refused (HTTP 401)', { status: 401 });
     }
     const [first] = statuses;
