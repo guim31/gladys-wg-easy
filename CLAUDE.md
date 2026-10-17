@@ -33,7 +33,9 @@ pushing.
 ```
 index.js                          SDK wiring only: src/app.js registers the handlers before connect()
 src/app.js                        every SDK handler -> the hub (also used by the tests)
-src/hub.js                        reading timer, clients, states, transitions -> scene events, switch, deduplicated logs
+src/hub.js                        reading timer, the servers, devices, states, switch, server actions, deduplicated logs
+src/server.js                     one wg-easy server: its reading, clients, transitions -> scene events, outages
+src/store.js                      the servers added by the action, in /data/servers.json
 src/devices.js                    server device + one device per client: features, names (4 languages), values
 src/wgeasy/client.js              wg-easy API client, v15 (basic auth) and v14 (password header), errors by kind
 src/wgeasy/http.js                node:http/https request (self-signed certificates on request)
@@ -225,7 +227,14 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
   que l'interface de wg-easy, `ClientCard/Transfer.vue`). Les fonctionnalités sont nommées du point de vue du
   client.
 - **Identité d'un client = sa clé publique WireGuard en hexadécimal**, pas l'id wg-easy : la migration v14 → v15
-  renumérote (uuid → entier) mais garde les clés. Le serveur est `server:1` (un seul par Gladys).
+  renumérote (uuid → entier) mais garde les clés. Le serveur de la configuration est `server:1`.
+- **Plusieurs serveurs (1.1.0, demande de lmilcent, t/11334)** : `src/server.js` lit un serveur, le hub les
+  coordonne. Le serveur de la configuration garde l'id `1` (appareils de 1.0.0 inchangés) ; les autres, ajoutés par
+  l'action `add_server`, vivent dans `/data/servers.json` (mots de passe compris, `0600`, jamais journalisés), ids
+  `2`, `3`… jamais réutilisés (`lastId`), un appareil supprimé pouvant rester dans Gladys. Un client garde l'id de
+  sa clé publique : la même clé sur deux serveurs (configuration copiée) reste au premier qui l'a lue. Les
+  événements portent `server` (nom) et `server_device` (filtre). Champ `password` des actions en `string` : un
+  `secret` d'action n'est saisissable qu'à partir du cœur 5.2.0 (#3154/#3163), le manifeste accepte 5.1.
 - **Connecté** = activé et handshake de moins de 3 min (WireGuard le renouvelle toutes les 2 min tant que des
   paquets passent). Aucun événement de scène à la première lecture (état antérieur inconnu), ni après un
   changement d'identifiants.
@@ -249,7 +258,8 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
   `INIT_ENABLED=true` (+ `INIT_USERNAME`, `INIT_PASSWORD`, `INIT_HOST`, `INIT_PORT`), puis un client
   `lscr.io/linuxserver/wireguard` avec la configuration de `GET /api/client/{id}/configuration` (`AllowedIPs`
   réduit au sous-réseau du VPN, sans `DNS`) et un `ping 10.8.0.1` pour le handshake. Le module noyau `wireguard`
-  de l'hôte doit être déjà chargé. v14 : `PASSWORD_HASH` généré par `wgpw` dans son image.
+  de l'hôte doit être déjà chargé. Sur le Beelink, wg-easy 15 récent échoue à monter `wg0` (pas de module
+  `ip6_tables` pour le NAT IPv6) : `-e DISABLE_IPV6=true`. Plusieurs serveurs vérifiés ainsi le 17/10 (15 + 14). v14 : `PASSWORD_HASH` généré par `wgpw` dans son image.
 
 ## Store
 

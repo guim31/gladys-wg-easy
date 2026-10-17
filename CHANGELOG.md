@@ -10,6 +10,14 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+### Added
+
+- Several wg-easy servers: "Add a wg-easy server", "Remove a wg-easy server"
+  and "Show the servers" watch other wg-easy on top of the one of the
+  configuration. Each server has its own server device and clients; the scene
+  triggers say the server and can be limited to one; the widget lists the
+  clients of every server and the ones that do not answer.
+
 ## [1.0.0] - 2026-10-17
 
 ### Added

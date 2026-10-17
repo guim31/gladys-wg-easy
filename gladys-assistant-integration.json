@@ -251,6 +251,149 @@
         "es": "Probar la conexión"
       },
       "timeout_seconds": 30
+    },
+    {
+      "key": "add_server",
+      "label": {
+        "en": "Add a wg-easy server",
+        "fr": "Ajouter un serveur wg-easy",
+        "de": "wg-easy-Server hinzufügen",
+        "es": "Añadir un servidor wg-easy"
+      },
+      "description": {
+        "en": "Another wg-easy, on top of the one of the configuration. Adding one already added changes its user, password or certificate option.",
+        "fr": "Un autre wg-easy, en plus de celui de la configuration. Ajouter un serveur déjà ajouté change son identifiant, son mot de passe ou l'option de certificat.",
+        "de": "Ein weiterer wg-easy, zusätzlich zu dem der Konfiguration. Einen bereits hinzugefügten erneut hinzuzufügen ändert Benutzer, Passwort oder Zertifikatsoption.",
+        "es": "Otro wg-easy, además del de la configuración. Añadir uno ya añadido cambia su usuario, su contraseña o la opción de certificado."
+      },
+      "timeout_seconds": 30,
+      "fields": [
+        {
+          "key": "url",
+          "type": "string",
+          "label": {
+            "en": "Address",
+            "fr": "Adresse",
+            "de": "Adresse",
+            "es": "Dirección"
+          },
+          "description": {
+            "en": "Address of the wg-easy web interface, with https:// for HTTPS and :port.",
+            "fr": "Adresse de l'interface web de wg-easy, avec https:// pour le HTTPS et :port.",
+            "de": "Adresse der Weboberfläche von wg-easy, mit https:// für HTTPS und :Port.",
+            "es": "Dirección de la interfaz web de wg-easy, con https:// para HTTPS y :puerto."
+          },
+          "placeholder": {
+            "en": "e.g. 192.168.1.2:51821",
+            "fr": "ex. 192.168.1.2:51821",
+            "de": "z. B. 192.168.1.2:51821",
+            "es": "p. ej. 192.168.1.2:51821"
+          },
+          "required": false
+        },
+        {
+          "key": "username",
+          "type": "string",
+          "label": {
+            "en": "User name (v15)",
+            "fr": "Identifiant (v15)",
+            "de": "Benutzername (v15)",
+            "es": "Usuario (v15)"
+          },
+          "description": {
+            "en": "A wg-easy user. An admin sees every client, another user only their own. Ignored by v14.",
+            "fr": "Un utilisateur de wg-easy. Un admin voit tous les clients, un autre utilisateur seulement les siens. Ignoré en v14.",
+            "de": "Ein wg-easy-Benutzer. Ein Admin sieht alle Clients, ein anderer Benutzer nur seine eigenen. In v14 ignoriert.",
+            "es": "Un usuario de wg-easy. Un administrador ve todos los clientes, otro usuario solo los suyos. Se ignora en v14."
+          },
+          "required": false
+        },
+        {
+          "key": "password",
+          "type": "string",
+          "label": {
+            "en": "Password",
+            "fr": "Mot de passe",
+            "de": "Passwort",
+            "es": "Contraseña"
+          },
+          "description": {
+            "en": "Password of this user (v15) or of the web interface (v14). Kept in the integration's data, never in the logs.",
+            "fr": "Mot de passe de cet utilisateur (v15) ou de l'interface web (v14). Gardé dans les données de l'intégration, jamais dans les journaux.",
+            "de": "Passwort dieses Benutzers (v15) oder der Weboberfläche (v14). In den Daten der Integration gespeichert, nie in den Protokollen.",
+            "es": "Contraseña de este usuario (v15) o de la interfaz web (v14). Se guarda en los datos de la integración, nunca en los registros."
+          },
+          "required": false
+        },
+        {
+          "key": "allow_self_signed",
+          "type": "boolean",
+          "label": {
+            "en": "Accept self-signed certificates",
+            "fr": "Accepter les certificats auto-signés",
+            "de": "Selbstsignierte Zertifikate akzeptieren",
+            "es": "Aceptar certificados autofirmados"
+          },
+          "description": {
+            "en": "Only for an https:// address whose certificate is not signed by a known authority.",
+            "fr": "Seulement pour une adresse https:// dont le certificat n'est pas signé par une autorité connue.",
+            "de": "Nur für eine https://-Adresse, deren Zertifikat nicht von einer bekannten Stelle signiert ist.",
+            "es": "Solo para una dirección https:// cuyo certificado no esté firmado por una autoridad conocida."
+          },
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "remove_server",
+      "label": {
+        "en": "Remove a wg-easy server",
+        "fr": "Retirer un serveur wg-easy",
+        "de": "wg-easy-Server entfernen",
+        "es": "Quitar un servidor wg-easy"
+      },
+      "description": {
+        "en": "A server added by the action above, by its address. Its devices stay in Gladys until you delete them.",
+        "fr": "Un serveur ajouté par l'action ci-dessus, par son adresse. Ses appareils restent dans Gladys jusqu'à ce que vous les supprimiez.",
+        "de": "Ein mit der Aktion oben hinzugefügter Server, über seine Adresse. Seine Geräte bleiben in Gladys, bis du sie löschst.",
+        "es": "Un servidor añadido con la acción de arriba, por su dirección. Sus dispositivos se quedan en Gladys hasta que los borre."
+      },
+      "timeout_seconds": 30,
+      "fields": [
+        {
+          "key": "server",
+          "type": "string",
+          "required": false,
+          "label": {
+            "en": "Address",
+            "fr": "Adresse",
+            "de": "Adresse",
+            "es": "Dirección"
+          },
+          "placeholder": {
+            "en": "e.g. 192.168.1.3:51821",
+            "fr": "ex. 192.168.1.3:51821",
+            "de": "z. B. 192.168.1.3:51821",
+            "es": "p. ej. 192.168.1.3:51821"
+          }
+        }
+      ]
+    },
+    {
+      "key": "list_servers",
+      "label": {
+        "en": "Show the servers",
+        "fr": "Afficher les serveurs",
+        "de": "Server anzeigen",
+        "es": "Mostrar los servidores"
+      },
+      "description": {
+        "en": "Every wg-easy server watched, with its last reading.",
+        "fr": "Chaque serveur wg-easy surveillé, avec sa dernière lecture.",
+        "de": "Jeder überwachte wg-easy-Server mit seiner letzten Abfrage.",
+        "es": "Cada servidor wg-easy vigilado, con su última lectura."
+      },
+      "timeout_seconds": 30
     }
   ],
   "scene_triggers": [
@@ -279,6 +422,17 @@
             "de": "Client (leer: beliebig)",
             "es": "Cliente (vacío: cualquiera)"
           }
+        },
+        {
+          "key": "server_device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Server (empty: any)",
+            "fr": "Serveur (vide : n'importe lequel)",
+            "de": "Server (leer: beliebig)",
+            "es": "Servidor (vacío: cualquiera)"
+          }
         }
       ],
       "variables": [
@@ -300,6 +454,16 @@
             "fr": "Appareil du client",
             "de": "Gerät des Clients",
             "es": "Dispositivo del cliente"
+          }
+        },
+        {
+          "key": "server",
+          "type": "string",
+          "label": {
+            "en": "Server",
+            "fr": "Serveur",
+            "de": "Server",
+            "es": "Servidor"
           }
         }
       ]
@@ -328,6 +492,17 @@
             "fr": "Client (vide : n'importe lequel)",
             "de": "Client (leer: beliebig)",
             "es": "Cliente (vacío: cualquiera)"
+          }
+        },
+        {
+          "key": "server_device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Server (empty: any)",
+            "fr": "Serveur (vide : n'importe lequel)",
+            "de": "Server (leer: beliebig)",
+            "es": "Servidor (vacío: cualquiera)"
           }
         }
       ],
@@ -361,6 +536,16 @@
             "de": "Minuten verbunden",
             "es": "Minutos conectado"
           }
+        },
+        {
+          "key": "server",
+          "type": "string",
+          "label": {
+            "en": "Server",
+            "fr": "Serveur",
+            "de": "Server",
+            "es": "Servidor"
+          }
         }
       ]
     },
@@ -388,6 +573,29 @@
             "de": "Fehler",
             "es": "Error"
           }
+        },
+        {
+          "key": "server",
+          "type": "string",
+          "label": {
+            "en": "Server",
+            "fr": "Serveur",
+            "de": "Server",
+            "es": "Servidor"
+          }
+        }
+      ],
+      "fields": [
+        {
+          "key": "server_device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Server (empty: any)",
+            "fr": "Serveur (vide : n'importe lequel)",
+            "de": "Server (leer: beliebig)",
+            "es": "Servidor (vacío: cualquiera)"
+          }
         }
       ]
     },
@@ -414,6 +622,29 @@
             "fr": "Minutes sans réponse",
             "de": "Minuten ohne Antwort",
             "es": "Minutos sin respuesta"
+          }
+        },
+        {
+          "key": "server",
+          "type": "string",
+          "label": {
+            "en": "Server",
+            "fr": "Serveur",
+            "de": "Server",
+            "es": "Servidor"
+          }
+        }
+      ],
+      "fields": [
+        {
+          "key": "server_device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Server (empty: any)",
+            "fr": "Serveur (vide : n'importe lequel)",
+            "de": "Server (leer: beliebig)",
+            "es": "Servidor (vacío: cualquiera)"
           }
         }
       ]

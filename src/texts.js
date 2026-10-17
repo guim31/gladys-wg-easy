@@ -127,3 +127,77 @@ export function errorText(err, language) {
   }
   return pick(COMMAND_TEXT[err.kind] ?? ERROR_TEXT[err.kind] ?? ERROR_TEXT.http, language);
 }
+
+/**
+ * A text table of the servers' actions, filled: each language is a string or
+ * a function of `params`.
+ */
+export function render(table, params = {}) {
+  return Object.fromEntries(
+    Object.entries(table).map(([language, text]) => [
+      language,
+      typeof text === 'function' ? text(params) : text,
+    ]),
+  );
+}
+
+// The configuration actions of the servers (add, remove, show).
+export const SERVER_TEXT = {
+  added: {
+    en: ({ name }) => `${name} added.`,
+    fr: ({ name }) => `${name} ajouté.`,
+    de: ({ name }) => `${name} hinzugefügt.`,
+    es: ({ name }) => `${name} añadido.`,
+  },
+  updated: {
+    en: ({ name }) => `${name} updated.`,
+    fr: ({ name }) => `${name} mis à jour.`,
+    de: ({ name }) => `${name} aktualisiert.`,
+    es: ({ name }) => `${name} actualizado.`,
+  },
+  read: {
+    en: ({ clients }) => `It answers: ${clients} client(s). Open the Discover tab to add them.`,
+    fr: ({ clients }) =>
+      `Il répond : ${clients} client(s). Ouvrez l'onglet Découverte pour les ajouter.`,
+    de: ({ clients }) =>
+      `Er antwortet: ${clients} Client(s). Öffne den Tab „Entdecken“, um sie hinzuzufügen.`,
+    es: ({ clients }) =>
+      `Responde: ${clients} cliente(s). Abra la pestaña Descubrir para añadirlos.`,
+  },
+  inConfig: {
+    en: ({ name }) => `${name} is the server of the configuration: change it there.`,
+    fr: ({ name }) => `${name} est le serveur de la configuration : modifiez-le là.`,
+    de: ({ name }) => `${name} ist der Server der Konfiguration: Ändere ihn dort.`,
+    es: ({ name }) => `${name} es el servidor de la configuración: cámbielo allí.`,
+  },
+  tooMany: {
+    en: ({ max }) => `At most ${max} servers on top of the one of the configuration.`,
+    fr: ({ max }) => `Au plus ${max} serveurs en plus de celui de la configuration.`,
+    de: ({ max }) => `Höchstens ${max} Server zusätzlich zu dem der Konfiguration.`,
+    es: ({ max }) => `Como máximo ${max} servidores además del de la configuración.`,
+  },
+  unknown: {
+    en: ({ query, servers }) => `No server "${query}". Servers: ${servers}.`,
+    fr: ({ query, servers }) => `Aucun serveur « ${query} ». Serveurs : ${servers}.`,
+    de: ({ query, servers }) => `Kein Server „${query}“. Server: ${servers}.`,
+    es: ({ query, servers }) => `Ningún servidor «${query}». Servidores: ${servers}.`,
+  },
+  removeConfig: {
+    en: ({ name }) => `${name} is the server of the configuration: empty its address there.`,
+    fr: ({ name }) => `${name} est le serveur de la configuration : videz son adresse là.`,
+    de: ({ name }) => `${name} ist der Server der Konfiguration: Leere dort seine Adresse.`,
+    es: ({ name }) => `${name} es el servidor de la configuración: vacíe allí su dirección.`,
+  },
+  removed: {
+    en: ({ name }) => `${name} removed. Delete its devices in Gladys if needed.`,
+    fr: ({ name }) => `${name} retiré. Supprimez ses appareils dans Gladys si besoin.`,
+    de: ({ name }) => `${name} entfernt. Lösche seine Geräte in Gladys, falls nötig.`,
+    es: ({ name }) => `${name} eliminado. Borre sus dispositivos en Gladys si hace falta.`,
+  },
+  waiting: {
+    en: 'not read yet',
+    fr: 'pas encore lu',
+    de: 'noch nicht gelesen',
+    es: 'aún sin leer',
+  },
+};

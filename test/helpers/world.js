@@ -6,6 +6,9 @@
 // (Adapted from guim31/gladys-pihole.)
 // -----------------------------------------------------------------------------
 
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
 import { registerHandlers } from '../../src/app.js';
 import { CLIENT_TYPE, SERVER_ID, SERVER_TYPE } from '../../src/devices.js';
@@ -56,20 +59,24 @@ export async function createWorld({
   connect = true,
   timings = {},
   timers = false,
+  servers = {},
+  dataDir = mkdtempSync(join(tmpdir(), 'gladys-wg-easy-')),
 } = {}) {
-  const network = createNetwork({ [URL_1]: server });
+  // `servers`: more fake wg-easy, by origin (the servers added by the action).
+  const network = createNetwork({ [URL_1]: server, ...servers });
   const gladys = createFakeGladys({ config, devices });
   const app = registerHandlers(gladys, {
     request: network.request,
     timers,
     timings,
     now: clock.now,
+    dataDir,
   });
   if (connect) {
     await gladys.connect();
     await app.ready;
   }
-  return { gladys, fake: gladys.fake, server, network, app, hub: app.hub, clock };
+  return { gladys, fake: gladys.fake, server, network, app, hub: app.hub, clock, dataDir };
 }
 
 export const serverDeviceId = (gladys) => gladys.externalIds(SERVER_TYPE, SERVER_ID).device;

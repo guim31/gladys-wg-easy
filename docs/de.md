@@ -53,6 +53,20 @@ Die Version (v15 oder v14) wird automatisch erkannt. Die Szenen-Auslöser und
 das Widget funktionieren auch für Clients, die du nicht zu Gladys hinzugefügt
 hast.
 
+### Mehrere Server
+
+Der Server der Konfiguration ist der erste. Um weitere wg-easy zu überwachen
+(ein Ferienhaus, ein anderer Rechner), nutze **wg-easy-Server hinzufügen** mit
+denselben Feldern: Adresse, Benutzername, Passwort, selbstsignierte
+Zertifikate. Jeder Server bekommt sein eigenes Server-Gerät und seine Clients,
+nach seiner Adresse benannt. Einen bereits hinzugefügten Server erneut
+hinzuzufügen ändert Benutzername, Passwort oder Zertifikatsoption.
+**wg-easy-Server entfernen** nimmt seine Adresse; seine Geräte bleiben in
+Gladys, bis du sie löschst. **Server anzeigen** listet jeden Server mit seiner
+letzten Abfrage. Die hinzugefügten Server und ihre Passwörter werden in den
+Daten der Integration gespeichert, nie in den Protokollen. Der Status der
+Integration nennt den ersten Server, der nicht antwortet.
+
 ## Die Geräte
 
 **Der Server** (`wg-easy` gefolgt von seiner Adresse):
@@ -112,14 +126,17 @@ Zeilen; darüber hinaus zählt die letzte Zeile die weiteren Clients.
 
 - **VPN-Client verbunden**: Ein Client hat sich mit dem VPN des Zuhauses
   verbunden (ein Handshake nach 3 Minuten Stille). Filter: ein Client oder
-  beliebig. Variablen: Name des Clients, Gerät des Clients.
+  beliebig; ein Server oder beliebig. Variablen: Name des Clients, Gerät des
+  Clients, Server.
 - **VPN-Client getrennt**: Ein Client hatte seit 3 Minuten keinen Handshake
-  mehr oder wurde deaktiviert. Filter: ein Client oder beliebig. Variablen:
-  Name des Clients, Gerät des Clients, Minuten verbunden.
+  mehr oder wurde deaktiviert. Filter: ein Client oder beliebig; ein Server
+  oder beliebig. Variablen: Name des Clients, Gerät des Clients, Minuten
+  verbunden, Server.
 - **wg-easy antwortet nicht mehr**: wg-easy antwortet nicht mehr (zwei
-  Abfragen in Folge). Variable: der Fehler.
+  Abfragen in Folge). Filter: ein Server oder beliebig. Variablen: der Fehler, der Server.
 - **wg-easy antwortet wieder**: wg-easy antwortet nach einem Ausfall wieder.
-  Variable: Minuten ohne Antwort.
+  Filter: ein Server oder beliebig. Variablen: Minuten ohne Antwort, der
+  Server.
 
 Beim Start der Integration wird kein Ereignis gesendet: Der vorherige Zustand
 ist nicht bekannt.
@@ -157,7 +174,8 @@ ist nicht bekannt.
 
 ## Grenzen
 
-- Ein wg-easy-Server pro Gladys.
+- Höchstens 10 wg-easy-Server: der der Konfiguration und 9 hinzugefügte.
+
 - Nur wg-easy v15 und v14; ältere Versionen werden nicht unterstützt.
 - „Verbunden“ wird aus dem letzten Handshake abgeleitet (3 Minuten): Ein
   Client, der nichts sendet, gilt als getrennt; eine Trennung wird bis zu

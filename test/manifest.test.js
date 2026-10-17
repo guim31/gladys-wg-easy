@@ -65,7 +65,12 @@ test('every manifest action has a handler', async (t) => {
     const ack = await world.fake.action(action.key, {});
     assert.equal(ack.success, true, `${action.key}: ${ack.error}`);
   }
-  assert.deepEqual(keysOf(manifest.actions), ['test_connection']);
+  assert.deepEqual(keysOf(manifest.actions), [
+    'test_connection',
+    'add_server',
+    'remove_server',
+    'list_servers',
+  ]);
 });
 
 test('scene triggers and widgets require Gladys >= 5.1.0', () => {

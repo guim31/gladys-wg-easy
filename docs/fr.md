@@ -50,6 +50,18 @@ client WireGuard. Vos retours sont les bienvenus sur le
 La version (v15 ou v14) est détectée toute seule. Les déclencheurs de scène et
 le widget fonctionnent même pour les clients non ajoutés à Gladys.
 
+### Plusieurs serveurs
+
+Le serveur de la configuration est le premier. Pour surveiller d'autres
+wg-easy (une résidence secondaire, une autre machine), utilisez **Ajouter un serveur wg-easy** avec les mêmes champs : adresse, identifiant, mot de passe,
+certificats auto-signés. Chaque serveur a son propre appareil serveur et ses
+clients, nommés d'après son adresse. Ajouter un serveur déjà ajouté change son
+identifiant, son mot de passe ou l'option de certificat. **Retirer un serveur wg-easy** prend son adresse ; ses appareils restent dans Gladys jusqu'à ce que
+vous les supprimiez. **Afficher les serveurs** liste chaque serveur avec sa
+dernière lecture. Les serveurs ajoutés et leurs mots de passe sont gardés dans
+les données de l'intégration, jamais dans les journaux. Le statut de
+l'intégration nomme le premier serveur qui ne répond pas.
+
 ## Les appareils
 
 **Le serveur** (`wg-easy` suivi de son adresse) :
@@ -105,15 +117,18 @@ au-delà, la dernière ligne compte les autres clients.
 ### Déclencheurs
 
 - **Client VPN connecté** : un client s'est connecté au VPN de la maison (un
-  handshake après 3 minutes de silence). Filtre : un client, ou n'importe
-  lequel. Variables : nom du client, appareil du client.
+  handshake après 3 minutes de silence). Filtres : un client, ou n'importe
+  lequel ; un serveur, ou n'importe lequel. Variables : nom du client, appareil
+  du client, serveur.
 - **Client VPN déconnecté** : un client n'a plus fait de handshake depuis
-  3 minutes, ou a été désactivé. Filtre : un client, ou n'importe lequel.
-  Variables : nom du client, appareil du client, minutes de connexion.
+  3 minutes, ou a été désactivé. Filtres : un client, ou n'importe lequel ;
+  un serveur, ou n'importe lequel. Variables : nom du client, appareil du
+  client, minutes de connexion, serveur.
 - **wg-easy ne répond plus** : wg-easy ne répond plus (deux lectures de suite).
-  Variable : l'erreur.
+  Filtre : un serveur, ou n'importe lequel. Variables : l'erreur, le serveur.
 - **wg-easy répond à nouveau** : wg-easy répond à nouveau après une panne.
-  Variable : minutes sans réponse.
+  Filtre : un serveur, ou n'importe lequel. Variables : minutes sans réponse,
+  le serveur.
 
 Aucun événement n'est envoyé au démarrage de l'intégration : l'état d'avant
 n'est pas connu.
@@ -151,7 +166,8 @@ n'est pas connu.
 
 ## Limites
 
-- Un seul serveur wg-easy par Gladys.
+- 10 serveurs wg-easy au plus : celui de la configuration et 9 ajoutés.
+
 - wg-easy v15 et v14 seulement ; les versions plus anciennes ne sont pas prises
   en charge.
 - « Connecté » se déduit du dernier handshake (3 minutes) : un client qui
