@@ -1,0 +1,10 @@
+{
+  "unauthorized": {
+    "statusCode": 500,
+    "stack": []
+  },
+  "unknown_client": {
+    "statusCode": 404,
+    "stack": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "unauthorized": {
+    "error": true,
+    "url": "http://192.0.2.10:51821/api/client",
+    "statusCode": 401,
+    "statusMessage": "Session failed",
+    "message": "Session failed"
+  },
+  "no_authorization": {
+    "error": true,
+    "url": "http://192.0.2.10:51821/api/client",
+    "statusCode": 401,
+    "statusMessage": "Session failed. No Authorization",
+    "message": "Session failed. No Authorization"
+  },
+  "v14_path": {
+    "error": true,
+    "url": "http://192.0.2.10:51821/api/wireguard/client",
+    "statusCode": 404,
+    "statusMessage": "Page not found: /api/wireguard/client",
+    "message": "Page not found: /api/wireguard/client",
+    "data": {
+      "path": "/api/wireguard/client"
+    }
+  }
+}

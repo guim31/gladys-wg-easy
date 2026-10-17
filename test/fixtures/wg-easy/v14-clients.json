@@ -1,0 +1,16 @@
+[
+  {
+    "id": "25f69516-a070-453d-aa65-36a8d237e6c8",
+    "name": "Alice phone",
+    "enabled": true,
+    "address": "10.8.0.2",
+    "publicKey": "2W0GFKwVCfTaX7aZJrtI8IEGh7YGa4do4KEiNjQggfQ=",
+    "createdAt": "2026-10-17T13:11:46.907Z",
+    "updatedAt": "2026-10-17T13:11:46.907Z",
+    "downloadableConfig": true,
+    "persistentKeepalive": "off",
+    "latestHandshakeAt": null,
+    "transferRx": 0,
+    "transferTx": 0
+  }
+]
